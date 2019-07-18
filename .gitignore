@@ -38,3 +38,6 @@ rsconnect/
 # Data files
 /data/*
 
+# LODES data
+/lodes_raw/*
+
