@@ -2,51 +2,64 @@
 dbdir <- here("data", "accessdb")
 con <- dbConnect(MonetDBLite::MonetDBLite(), dbdir)
 
-tt_matrices <- list.files()[grep("traveltime_matrix*", list.files())]
+tt_before <- 
+  list.files(here("data"), full.names = TRUE)[grep("tt_before*", 
+                                             list.files(here("data")))]
+
+tt_after <- 
+  list.files(here("data"), full.names = TRUE)[grep("tt_after*", 
+                                             list.files(here("data")))]
 
 # Read all tt matrices into a database table 
-monet.read.csv(con, tt_matrices, "skims")
+monet.read.csv(con, tt_before, "skims_before")
+monet.read.csv(con, tt_after, "skims_after")
 
-# Count number of records
-dbGetQuery(con, "SELECT count(*) FROM skims")
-
-# Calculate accessibility for each OD pair at each time slice and 
+# TODO: Calculate accessibility for each OD pair at each time slice and 
 # place it in a new table 
 
-# Query summary table of average travel times
-mean_times <- dbGetQuery(
-  con, "
-  SELECT origin, destination, 
-  avg(travel_time) AS average, median(travel_time) AS med
-  FROM skims
+# Write jobs to database
+dbWriteTable(con, "jobs", st_drop_geometry(hex_lodes))
+
+# Create view that joins the jobs and skims for the two time periods
+dbExecute(con,
+  "CREATE VIEW time_jobs_before AS
+  SELECT origin, destination, avg(totjobs) AS totjobs,
+  avg(travel_time) AS avgtime
+  FROM skims_before INNER JOIN jobs
+  ON skims_before.destination = jobs.hexid
   GROUP BY origin, destination")
 
-ggplot(filter(mean_times, origin == 1), aes(x = destination, y = average)) + 
-  geom_point()
-
-# Write jobs to database
-# dbWriteTable(con, "jobs", st_drop_geometry(hex_lodes))
-
-# Create view that joins the jobs and skims and calculates accessibility
 dbExecute(con,
-  "CREATE VIEW accessibility45 AS
-  SELECT origin, sum(totjobs) AS acc45
-  FROM skims INNER JOIN jobs
-  ON skims.destination = jobs.hexid
-  WHERE travel_time < 3600
-  GROuP BY origin")
+  "CREATE VIEW time_jobs_after AS
+  SELECT origin, destination, avg(totjobs) AS totjobs,
+  avg(travel_time) AS avgtime
+  FROM skims_after INNER JOIN jobs
+  ON skims_after.destination = jobs.hexid
+  GROUP BY origin, destination")
 
-dbExecute(con, "DROP VIEW accessibility45")
+# Once this is ready, then just grab each of the threshold accessibilites 
+acc60_before <- dbGetQuery(con, 
+  "SELECT origin AS hexid, sum(totjobs) AS acc60
+  FROM time_jobs_before
+  WHERE avgtime < 3600
+  GROUP BY origin")          
 
-# QA/QC
-dbGetQuery(con, "SELECT count(*) FROM accessibility45")
-acc45 <- dbGetQuery(con, "SELECT * FROM accessibility45")
-mean(acc45$acc45)
+acc60_before_hex <- left_join(harris_hex, acc60_before)
 
-acc_demogs <- inner_join(filter(hex_demogs, variable == "B03002_003"),
-                         acc45, by = c("hexid" = "origin"))
-                                                                                                                                                                                                                                                                                                        
-weighted.mean(acc_demogs$acc45, acc_demogs$totpop)
+acc60_after <- dbGetQuery(con, 
+  "SELECT origin AS hexid, sum(totjobs) AS acc60 
+  FROM time_jobs_after
+  WHERE avgtime < 3600
+  GROUP BY origin")          
 
-ggplot(filter(acc_demogs, variable == "B03002_003"), aes(fill = acc45, col = acc45)) + 
-  geom_sf()
+acc60_after_hex <- left_join(harris_hex, acc60_after)
+
+# Combine before and after into a single dataframe for plotting
+acc60 <- rbind(mutate(acc60_before_hex, when = "before"),
+               mutate(acc60_after_hex, when = "after"))
+
+# Combine before and after into a single dataframe for comparisons
+acc60_comp <- inner_join(rename(acc60_before, acc60_b = acc60),
+                         rename(acc60_after, acc60_a = acc60))
+
+dbDisconnect(con, shutdown = TRUE)
