@@ -1,6 +1,9 @@
 # Word docs
 *.docx
 
+# All output files
+/output/*
+
 # History files
 .Rhistory
 .Rapp.history
