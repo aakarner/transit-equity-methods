@@ -18,7 +18,7 @@ harris_hex <- harris_county %>%
   st_intersection(harris_county) %>%
   st_sf()
 
-harris_hex$hexid <- row.names(harris_hex)
+harris_hex$hexid <- as.numeric(row.names(harris_hex))
 
 ## Calculate origin and destination centroids ----------------------------------
 
@@ -95,6 +95,35 @@ hex_demogs$hexid <- as.numeric(hex_demogs$hexid) # Needed for later joins
 # are about 4.4 million
 sum(hlrace$summary_est)
 sum(hex_demogs$totpop)
+
+# Transit dependent population
+trandep_vars <- c("B25046_001", # Aggregate vehicles available
+                 "B26001_001", # Group quarters population  
+                 "B26101_166", # Non-institutionalized group quarters pop
+                 "B23025_001", # Population aged >= 16 in workforce or not
+                 "B09001_008", # In households, 12-14 years old
+                 "B12001_001") # Total pop. > 15 years old 
+
+trandep <- st_transform(get_acs(geography = "block group", 
+                variables = trandep_vars, state = "TX", 
+                county = "Harris County", geometry = TRUE),
+                "+init=epsg:3673")
+trandep$orig_area <- st_area(trandep)
+
+trandep_hex <- st_intersection(trandep, harris_hex)
+trandep_hex$area <- st_area(trandep_hex)
+trandep_hex$prop <- trandep_hex$area / trandep_hex$orig_area
+
+hex_trandep <- trandep_hex %>%
+  group_by(hexid, variable) %>%
+  summarize(est = sum(estimate * prop))
+
+# Strip out the units on all counts
+hex_demogs$est <- as.vector(hex_demogs$est)
+hex_demogs$totpop <- as.vector(hex_demogs$totpop)
+hex_demogs$share <- as.vector(hex_demogs$share)
+hex_demogs$hexid <- as.numeric(hex_demogs$hexid) # Needed for later joins
+
 
 # Grab LEHD data and associate with hexagonal cells ----------------------------
 tx_lodes <- grab_lodes("TX", 2015, "wac", "JT00", "S000", "block", "main")

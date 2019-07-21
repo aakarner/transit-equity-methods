@@ -1,3 +1,6 @@
+# Word docs
+*.docx
+
 # History files
 .Rhistory
 .Rapp.history
@@ -16,6 +19,7 @@
 
 # RStudio files
 .Rproj.user/
+*.Rproj
 
 # produced vignettes
 vignettes/*.html
@@ -41,3 +45,4 @@ rsconnect/
 # LODES data
 /lodes_raw/*
 
+.Rproj.user
