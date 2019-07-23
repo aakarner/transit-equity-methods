@@ -33,6 +33,8 @@ metro_pre <-
   read_gtfs(here("data", "20150517_htx.zip"), local = TRUE, geometry = TRUE)
 
 all_stops <- rbind(metro_post$.$stops_sf, metro_pre$.$stops_sf)
+after_routes <- filter(metro_post$.$routes_sf, route_id %in% c(28363, 28364, 28365))
+# before_routes <- filter(metro_pre$.$routes_sf, route_id %in% c(28363, 28364, 28365)) # Nothing
 
 metro_buff <- all_stops %>%
   st_transform("+init=epsg:3673") %>% #http://spatialreference.org/ref/epsg/3673/
@@ -104,11 +106,19 @@ trandep_vars <- c("B25046_001", # Aggregate vehicles available
                  "B09001_008", # In households, 12-14 years old
                  "B12001_001") # Total pop. > 15 years old 
 
-trandep <- st_transform(get_acs(geography = "block group", 
+# Block group is too fine for these variables - many are missing at the scale
+trandep <- st_transform(get_acs(geography = "tract", 
                 variables = trandep_vars, state = "TX", 
                 county = "Harris County", geometry = TRUE),
                 "+init=epsg:3673")
 trandep$orig_area <- st_area(trandep)
+
+# Which variables are missing?
+table(st_drop_geometry(trandep)[is.na(trandep$estimate), "variable"])
+# Mostly B26101 - the non-institutionalized group quarters population, which 
+# is super important for the calculation. Also there are 17 tracts with
+# missing data on aggregate vehicles available. 
+# for simplicity, we'll omit the GQ population. 
 
 trandep_hex <- st_intersection(trandep, harris_hex)
 trandep_hex$area <- st_area(trandep_hex)
@@ -123,7 +133,6 @@ hex_demogs$est <- as.vector(hex_demogs$est)
 hex_demogs$totpop <- as.vector(hex_demogs$totpop)
 hex_demogs$share <- as.vector(hex_demogs$share)
 hex_demogs$hexid <- as.numeric(hex_demogs$hexid) # Needed for later joins
-
 
 # Grab LEHD data and associate with hexagonal cells ----------------------------
 tx_lodes <- grab_lodes("TX", 2015, "wac", "JT00", "S000", "block", "main")
