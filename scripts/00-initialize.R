@@ -13,9 +13,11 @@ library(forcats)
 library(progress)
 library(trread)
 library(lehdr)
+library(reldist)
 
 library(sf)
 library(ggplot2)
+library(ggspatial)
 
 library(MonetDBLite)
 library(DBI)

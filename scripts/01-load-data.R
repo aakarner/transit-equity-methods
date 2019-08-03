@@ -27,10 +27,22 @@ harris_hex$hexid <- as.numeric(row.names(harris_hex))
 
 # Read GTFS feeds representing pre- and post-reimagining networks in Houston
 metro_post <- 
-  read_gtfs(here("data", "20150818_htx.zip"), local = TRUE, geometry = TRUE)
+  read_gtfs(here("data", "20150818_htx.zip"), local = TRUE, geometry = TRUE,
+            frequency = TRUE)
 
 metro_pre <- 
-  read_gtfs(here("data", "20150517_htx.zip"), local = TRUE, geometry = TRUE)
+  read_gtfs(here("data", "20150517_htx.zip"), local = TRUE, geometry = TRUE,
+            frequency = TRUE)
+
+# QA/QC on GTFS data
+pre_freq <- metro_pre$.$routes_frequency
+post_freq <- metro_post$.$routes_frequency
+
+sum(pre_freq$mean_headways < 20) # 10
+sum(post_freq$mean_headways < 20) # 22
+
+# 10 routes befote and 22 after matches descriptions of the SR from
+# METRO's website: https://www.ridemetro.org/Pages/Reimagining-PlanMaterials.aspx
 
 all_stops <- rbind(metro_post$.$stops_sf, metro_pre$.$stops_sf)
 after_routes <- filter(metro_post$.$routes_sf, route_id %in% c(28363, 28364, 28365))
@@ -118,7 +130,9 @@ table(st_drop_geometry(trandep)[is.na(trandep$estimate), "variable"])
 # Mostly B26101 - the non-institutionalized group quarters population, which 
 # is super important for the calculation. Also there are 17 tracts with
 # missing data on aggregate vehicles available. 
-# for simplicity, we'll omit the GQ population. 
+# for simplicity, we'll omit the GQ population and set those missing auto 
+# values to zero. 
+trandep[is.na(trandep$estimate), ]$estimate <- 0
 
 trandep_hex <- st_intersection(trandep, harris_hex)
 trandep_hex$area <- st_area(trandep_hex)
@@ -129,10 +143,8 @@ hex_trandep <- trandep_hex %>%
   summarize(est = sum(estimate * prop))
 
 # Strip out the units on all counts
-hex_demogs$est <- as.vector(hex_demogs$est)
-hex_demogs$totpop <- as.vector(hex_demogs$totpop)
-hex_demogs$share <- as.vector(hex_demogs$share)
-hex_demogs$hexid <- as.numeric(hex_demogs$hexid) # Needed for later joins
+hex_trandep$est <- as.vector(hex_trandep$est)
+hex_trandep$hexid <- as.numeric(hex_trandep$hexid) # Needed for later joins
 
 # Grab LEHD data and associate with hexagonal cells ----------------------------
 tx_lodes <- grab_lodes("TX", 2015, "wac", "JT00", "S000", "block", "main")
