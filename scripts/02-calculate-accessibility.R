@@ -8,7 +8,6 @@ tt_before <-
 tt_after <- 
   list.files(here("data"), full.names = TRUE)[grep("tt_after*", 
                                              list.files(here("data")))]
-
 # Read all tt matrices into database tables 
 monet.read.csv(con, tt_before, "skims_before")
 monet.read.csv(con, tt_after, "skims_after")

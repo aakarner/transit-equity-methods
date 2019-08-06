@@ -19,5 +19,8 @@ library(sf)
 library(ggplot2)
 library(ggspatial)
 
+library(sf)
+library(ggplot2)
+
 library(MonetDBLite)
 library(DBI)
