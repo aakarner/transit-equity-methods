@@ -2,14 +2,11 @@
 # calculations.
 
 ## Grab and create spatial extents ----------------------------------------------
+options(tigris_use_cache = TRUE) # use cache in tigris package 
 
-harris_blocks <- tigris::blocks(state = "TX", county = "Harris County", year = 2010) 
-harris_blocks <- st_as_sf(harris_blocks) # convert spatial polygon to sf
-
-#mutate(geoid10 = substr(GEO_ID, 10, 20))
-
-tx_counties <- tigris::counties(state = "TX", year = 2010)
-tx_counties <- st_as_sf(tx_counties) # convert spatial polygon to sf
+# Load blocks and counties
+harris_blocks <- tigris::blocks(state = "TX", county = "Harris County", year = 2010, class='sf')
+tx_counties <- tigris::counties(state = "TX", year = 2010, class='sf')
 
 harris_county <- tx_counties %>%
   st_transform("+init=epsg:3673") %>%
@@ -23,6 +20,10 @@ harris_hex <- harris_county %>%
   st_sf()
 
 harris_hex$hexid <- as.numeric(row.names(harris_hex))
+
+# save hex grid
+  saveRDS(harris_hex, file = "./data/harris_hex.rds", compress=T)
+
 
 ## Calculate origin and destination centroids ----------------------------------
 
