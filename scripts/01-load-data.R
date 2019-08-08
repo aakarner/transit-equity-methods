@@ -119,8 +119,8 @@ head(hex_demogs)
 # QA/QC
 # Sum of both the census block group and hex population estimates 
 # are about 4.4 million
-sum(hlrace$summary_est) # 18,102,076 ???????????????????????????????????????????
-sum(hex_demogs$totpop) # 18,098,454  ???????????????????????????????????????????
+temp <- as.data.table(hex_demogs)[, .(hexid, totpop)] %>% unique()
+sum(temp$totpop) #  4524614
 
 # Transit dependent population
 trandep_vars <- c("B25046_001", # Aggregate vehicles available
@@ -158,6 +158,17 @@ hex_trandep <- trandep_hex %>%
 hex_trandep$est <- as.vector(hex_trandep$est)
 hex_trandep$hexid <- as.numeric(hex_trandep$hexid) # Needed for later joins
 
+
+# save census data
+saveRDS(hex_trandep, file ='./data/hex_trandep.rds', compress = T)
+
+
+
+
+
+
+
+
 # Grab LEHD data and associate with hexagonal cells ----------------------------
 tx_lodes <- lehdr::grab_lodes("TX", 2015, "wac", "JT00", "S000", "block", "main")
 
@@ -184,5 +195,5 @@ hex_lodes <- harris_lodes_hex %>%
 # Strip out the units on all counts
 hex_lodes$totjobs <- as.vector(hex_lodes$totjobs)
 
-# save census data
+# save jobs data
 saveRDS(hex_lodes, file ='./data/hex_lodes.rds', compress = T)
