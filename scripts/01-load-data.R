@@ -2,11 +2,12 @@
 # calculations.
 
 ## Grab and create spatial extents ----------------------------------------------
+options(tigris_use_cache = TRUE) # use cache in tigris package 
 
-harris_blocks <- blocks(state = "TX", county = "Harris County", year = 2010) 
-#mutate(geoid10 = substr(GEO_ID, 10, 20))
+# Load blocks and counties
+harris_blocks <- tigris::blocks(state = "TX", county = "Harris County", year = 2010, class='sf')
+tx_counties <- tigris::counties(state = "TX", year = 2010, class='sf')
 
-tx_counties <- counties(state = "TX", year = 2010)
 harris_county <- tx_counties %>%
   st_transform("+init=epsg:3673") %>%
   filter(NAME10 == "Harris")
@@ -19,6 +20,10 @@ harris_hex <- harris_county %>%
   st_sf()
 
 harris_hex$hexid <- as.numeric(row.names(harris_hex))
+
+# save hex grid
+  saveRDS(harris_hex, file = "./data/harris_hex.rds", compress=T)
+
 
 ## Calculate origin and destination centroids ----------------------------------
 
@@ -73,6 +78,9 @@ centroids_latlong <-
 # centroids <- st_transform(centroids, "+init=epsg:4326") # WGS84
 # ggplot(centroids) + geom_sf()
 
+
+
+
 ## Grab census data and associate it with the hexagonal cells ------------------
 
 # v17 <- load_variables(2017, "acs5", cache = TRUE)
@@ -82,10 +90,14 @@ hlstatus <- c("B03002_003", # white alone
               "B03002_006", # Asian
               "B03002_012") # Hispanic or Latino
 
-hlrace <- st_transform(get_acs(geography = "block group", variables = hlstatus,
-                summary_var = "B03002_001", state = "TX", 
-                county = "Harris County", geometry = TRUE),
-                "+init=epsg:3673")
+
+census_api_key('410d53c14a38e4f7e573b440c676d4f43419c3fc')
+
+hlrace <- tidycensus::get_acs(geography = "block group", variables = hlstatus,
+                               summary_var = "B03002_001", state = "TX", 
+                               county = "Harris County", geometry = TRUE) %>% st_transform("+init=epsg:3673")
+
+
 hlrace$orig_area <- st_area(hlrace)
 
 hlrace_hex <- st_intersection(hlrace, harris_hex)
@@ -103,12 +115,13 @@ hex_demogs$est <- as.vector(hex_demogs$est)
 hex_demogs$totpop <- as.vector(hex_demogs$totpop)
 hex_demogs$share <- as.vector(hex_demogs$share)
 hex_demogs$hexid <- as.numeric(hex_demogs$hexid) # Needed for later joins
+head(hex_demogs)
 
 # QA/QC
 # Sum of both the census block group and hex population estimates 
 # are about 4.4 million
-sum(hlrace$summary_est)
-sum(hex_demogs$totpop)
+temp <- as.data.table(hex_demogs)[, .(hexid, totpop)] %>% unique()
+sum(temp$totpop) #  4524614
 
 # Transit dependent population
 trandep_vars <- c("B25046_001", # Aggregate vehicles available
@@ -119,10 +132,10 @@ trandep_vars <- c("B25046_001", # Aggregate vehicles available
                  "B12001_001") # Total pop. > 15 years old 
 
 # Block group is too fine for these variables - many are missing at the scale
-trandep <- st_transform(get_acs(geography = "tract", 
+trandep <- tidycensus::get_acs(geography = "tract", 
                 variables = trandep_vars, state = "TX", 
-                county = "Harris County", geometry = TRUE),
-                "+init=epsg:3673")
+                county = "Harris County", geometry = TRUE) %>% st_transform("+init=epsg:3673")
+
 trandep$orig_area <- st_area(trandep)
 
 # Which variables are missing?
@@ -146,8 +159,19 @@ hex_trandep <- trandep_hex %>%
 hex_trandep$est <- as.vector(hex_trandep$est)
 hex_trandep$hexid <- as.numeric(hex_trandep$hexid) # Needed for later joins
 
+
+# save census data
+saveRDS(hex_trandep, file ='./data/hex_trandep.rds', compress = T)
+
+
+
+
+
+
+
+
 # Grab LEHD data and associate with hexagonal cells ----------------------------
-tx_lodes <- grab_lodes("TX", 2015, "wac", "JT00", "S000", "block", "main")
+tx_lodes <- lehdr::grab_lodes("TX", 2015, "wac", "JT00", "S000", "block", "main")
 
 # Add spatial information
 harris_lodes <- 
@@ -171,3 +195,6 @@ hex_lodes <- harris_lodes_hex %>%
 
 # Strip out the units on all counts
 hex_lodes$totjobs <- as.vector(hex_lodes$totjobs)
+
+# save jobs data
+saveRDS(hex_lodes, file ='./data/hex_lodes.rds', compress = T)
