@@ -90,9 +90,6 @@ hlstatus <- c("B03002_003", # white alone
               "B03002_006", # Asian
               "B03002_012") # Hispanic or Latino
 
-
-census_api_key('410d53c14a38e4f7e573b440c676d4f43419c3fc')
-
 hlrace <- tidycensus::get_acs(geography = "block group", variables = hlstatus,
                                summary_var = "B03002_001", state = "TX", 
                                county = "Harris County", geometry = TRUE) %>% st_transform("+init=epsg:3673")
@@ -162,11 +159,6 @@ hex_trandep$hexid <- as.numeric(hex_trandep$hexid) # Needed for later joins
 
 # save census data
 saveRDS(hex_trandep, file ='./data/hex_trandep.rds', compress = T)
-
-
-
-
-
 
 
 
