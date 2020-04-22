@@ -74,7 +74,7 @@ acc_comp_hex$diff <- acc_comp_hex$acc60_a - acc_comp_hex$acc60_b
 ggplot() + 
   geom_sf(data = acc_comp_hex, aes(col = diff, fill = diff)) +
   # geom_sf(data = after_routes, color = "red") + 
-  scale_fill_viridis_c(name = "difference in cumulative\nopoortunities accessibility\n(jobs accessible within 60 minutes)") + 
+  scale_fill_viridis_c(name = "difference in cumulative\nopportunities accessibility\n(jobs accessible within 60 minutes)") + 
   scale_color_viridis_c() + 
   guides(color = FALSE) + 
   xlab(NULL) + ylab(NULL) + 
@@ -157,7 +157,7 @@ ggplot(filter(lc_data,  when == "before"),
   geom_line() + 
   xlab("population percentile") + 
   ylab("accessibility percentile") + 
-  theme_bw() +
+  theme_bw(base_size = 20) +
   theme(legend.position = "bottom",
         legend.title = element_blank()) 
 
@@ -170,7 +170,7 @@ ggplot(lc_data,
   facet_wrap(~ race) + 
   xlab("population percentile") + 
   ylab("accessibility percentile") + 
-  theme_bw() +
+  theme_bw(base_size = 20) +
   theme(legend.position = "bottom",
         legend.title = element_blank()) 
 

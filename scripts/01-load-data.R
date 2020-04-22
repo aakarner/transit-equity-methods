@@ -22,7 +22,7 @@ harris_hex <- harris_county %>%
 harris_hex$hexid <- as.numeric(row.names(harris_hex))
 
 # save hex grid
-  saveRDS(harris_hex, file = "./data/harris_hex.rds", compress=T)
+saveRDS(harris_hex, file = "./data/harris_hex.rds", compress = T)
 
 
 ## Calculate origin and destination centroids ----------------------------------
@@ -31,26 +31,27 @@ harris_hex$hexid <- as.numeric(row.names(harris_hex))
 # Simplified-Trips-on-Project Software (STOPS)
 
 # Read GTFS feeds representing pre- and post-reimagining networks in Houston
-metro_post <- 
-  read_gtfs(here("data", "20150818_htx.zip"), local = TRUE, geometry = TRUE,
-            frequency = TRUE)
-
-metro_pre <- 
-  read_gtfs(here("data", "20150517_htx.zip"), local = TRUE, geometry = TRUE,
-            frequency = TRUE)
+metro_pre <- read_gtfs(here("data", "20150517_htx.zip"))
+metro_post <- read_gtfs(here("data", "20150818_htx.zip"))
 
 # QA/QC on GTFS data
-pre_freq <- metro_pre$.$routes_frequency
-post_freq <- metro_post$.$routes_frequency
+pre_freq <- get_route_frequency(metro_pre, start_hour = 5, end_hour = 20)
+post_freq <- get_route_frequency(metro_post, start_hour = 5, end_hour = 20)
 
-sum(pre_freq$mean_headways < 20) # 10
-sum(post_freq$mean_headways < 20) # 22
+sum(pre_freq$median_headways < 16) # 8
+sum(post_freq$median_headways < 16) # 20
 
-# 10 routes befote and 22 after matches descriptions of the SR from
+# Somewhat lower than what appears in published materials
+# But could be due to the time range and days of week considered
+# METRO states that service must be frequent for "15 hours/day"
+# 10 routes before and 22 after matches descriptions of the SR from
 # METRO's website: https://www.ridemetro.org/Pages/Reimagining-PlanMaterials.aspx
 
-all_stops <- rbind(metro_post$.$stops_sf, metro_pre$.$stops_sf)
-after_routes <- filter(metro_post$.$routes_sf, route_id %in% c(28363, 28364, 28365))
+foo <- gtfs_as_sf(metro_pre)
+
+all_stops <- rbind(gtfs_as_sf(metro_pre)$stops, gtfs_as_sf(metro_post)$stops)
+
+# after_routes <- filter(metro_post$.$routes_sf, route_id %in% c(28363, 28364, 28365))
 # before_routes <- filter(metro_pre$.$routes_sf, route_id %in% c(28363, 28364, 28365)) # Nothing
 
 metro_buff <- all_stops %>%
@@ -92,8 +93,8 @@ hlstatus <- c("B03002_003", # white alone
 
 hlrace <- tidycensus::get_acs(geography = "block group", variables = hlstatus,
                                summary_var = "B03002_001", state = "TX", 
-                               county = "Harris County", geometry = TRUE) %>% st_transform("+init=epsg:3673")
-
+                               county = "Harris County", geometry = TRUE) %>% 
+  st_transform("+init=epsg:3673")
 
 hlrace$orig_area <- st_area(hlrace)
 
