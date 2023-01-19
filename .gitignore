@@ -49,3 +49,6 @@ rsconnect/
 /lodes_raw/*
 
 .Rproj.user
+
+# API keys
+*.key
