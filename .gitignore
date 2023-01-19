@@ -48,6 +48,9 @@ rsconnect/
 # LODES data
 /lodes_raw/*
 
+# GTFS feeds
+/feeds*/
+
 .Rproj.user
 
 # API keys
