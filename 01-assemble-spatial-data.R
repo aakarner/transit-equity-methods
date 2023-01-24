@@ -3,13 +3,14 @@ library(tigris)
 library(tidycensus)
 library(dplyr)
 library(ggplot2)
+library(lehdr)
 
 # DC uses the Maryland State Plane NAD 83 coordinate system
 # https://octo.dc.gov/page/coordinate-system-standards
 # EPSG: 2248 
 # https://epsg.io/2248
 
-# Pull spatial data and create hexagon grid
+# Pull spatial data and create hexagon grid ------------------------------------
 
 dc_cbsa <- 
   core_based_statistical_areas() %>%
@@ -26,7 +27,7 @@ dc_hex <-
 # dc_hex$area <- st_area(dc_hex)
 # Area of each gridcell is 2,329,262 ft^2
 
-# Pull ACS data and interpolate to the grid cell level
+# Pull ACS data and interpolate to the grid cell level -------------------------
 demographics <- 
   get_acs(geography = "block group",
           variables = "B01001_001",
@@ -44,3 +45,35 @@ hex_demogs <-
   summarize(population = sum(hex_count))
 
 sum(hex_demogs$population) # 6,332,055
+
+# Pull LODES data and interpolate to the grid cell level------------------------
+
+dc_lodes <- 
+  grab_lodes(
+    state = c("dc", "wv", "va", "md"), year = 2019, lodes_type = "wac", 
+    job_type = "JT01", segment = "S000", state_part = "main", 
+    agg_geo = "bg")
+
+dc_bgs <- 
+  rbind(
+    block_groups(state = "DC", year = 2019),
+    block_groups(state = "WV", year = 2019),
+    block_groups(state = "VA", year = 2019),
+    block_groups(state = "MD", year = 2019))
+
+dc_jobs_bg <- 
+  inner_join(dc_bgs, dc_lodes, by = c("GEOID" = "w_bg")) %>%
+  st_transform("EPSG:2248") %>%
+  mutate(orig_area = units::drop_units(st_area(.)))
+
+hex_jobs <- 
+  st_intersection(dc_jobs_bg, dc_hex) %>%
+  mutate(new_area = units::drop_units(st_area(.))) %>%
+  mutate(hex_jobs = C000 * new_area / orig_area) %>%
+  group_by(hexid) %>%
+  summarize(jobs = sum(hex_jobs))
+
+# Merge demographic and jobs data ----------------------------------------------
+
+hex_final <- 
+  full_join(hex_demogs, hex_jobs, by = "hexid")
