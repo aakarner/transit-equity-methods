@@ -86,3 +86,12 @@ hex_jobs <-
 hex_final <- 
   left_join(hex_demogs, st_drop_geometry(hex_jobs), by = "hexid") %>%
   relocate(jobs, .after = population)
+
+hex_points <- 
+  st_centroid(hex_final) %>%
+  st_transform("EPSG:4326") 
+
+hex_coords <- as.data.frame(st_coordinates(hex_points))
+names(hex_coords) <- c("lon", "lat")
+hex_coords <- cbind(st_drop_geometry(hex_points), hex_coords)
+names(hex_coords)[1] <- "id"
