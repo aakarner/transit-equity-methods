@@ -37,6 +37,11 @@ demographics <-
   st_transform("EPSG:2248") %>%
   mutate(orig_area = units::drop_units(st_area(.)))
 
+ggplot() + 
+  geom_sf(data = dc_jobs_bg) + 
+  # geom_sf(data = demographics) + 
+  geom_sf(data = dc_cbsa, color = "red", fill = NA)
+
 hex_demogs <- 
   st_intersection(demographics, dc_hex) %>%
   mutate(new_area = units::drop_units(st_area(.))) %>%
@@ -62,7 +67,7 @@ dc_bgs <-
     block_groups(state = "MD", year = 2019))
 
 dc_jobs_bg <- 
-  inner_join(dc_bgs, dc_lodes, by = c("GEOID" = "w_bg")) %>%
+  left_join(dc_bgs, dc_lodes, by = c("GEOID" = "w_bg")) %>%
   st_transform("EPSG:2248") %>%
   mutate(orig_area = units::drop_units(st_area(.)))
 
@@ -75,5 +80,9 @@ hex_jobs <-
 
 # Merge demographic and jobs data ----------------------------------------------
 
+# Slight discrepancy in total hex counts is due to how features in water 
+# are treated. Take the ACS demographic gridcells as the base. 
+
 hex_final <- 
-  full_join(hex_demogs, hex_jobs, by = "hexid")
+  left_join(hex_demogs, st_drop_geometry(hex_jobs), by = "hexid") %>%
+  relocate(jobs, .after = population)
