@@ -31,6 +31,7 @@ dc_hex <-
 # Fairfax, and Falls Church in Virginia, the District of Columbia, and 
 # Montgomery and Prince George's counties in Maryland. 
 # Source: https://www.arlingtonva.us/files/sharedassets/public/budget/documents/fy22-p-30-metro-02.20.21.pdf
+# Extension to Dulles adds Loudoun county, Virginia, as well. 
 
 # State FIPS codes:
 # DC: 11
@@ -40,11 +41,12 @@ dc_hex <-
 wmata_area <- 
   counties(state = c("DC", "MD", "VA")) %>%
   filter(NAMELSAD %in% c("District of Columbia",
-                         "Arlington County", "Fairfax County", "Alexandria city", 
-                         "Fairfax city", "Falls Church city", 
+                         "Arlington County", "Fairfax County", "Loudoun County",
+                         "Alexandria city", "Fairfax city", "Falls Church city", 
                          "Prince George's County") | 
          NAMELSAD == "Montgomery County" & STATEFP == 24) %>% # don't pull VA here
-  st_union()
+  st_union() %>%
+  st_transform("EPSG:4326")
 
 wmata_states <- states() %>% filter(NAME %in% c("Virginia", "Maryland"))
 

@@ -14,12 +14,7 @@ before_med <- filter(before, percentile == 50)
 
 
 
-
-# Before access scores ---------------------------------------------------------
-
-
-
-# Compare scores 
+# Compare scores ---------------------------------------------------------------
 
 compare_scores <- 
   inner_join(before_med, after_med, by = "id") %>%
@@ -35,21 +30,45 @@ compare_scores$id <- as.numeric(compare_scores$id)
 
 compare_plot <- 
   left_join(dc_hex, compare_scores, by = c("hexid" = "id")) %>%
-  st_transform("EPSG:4326") %>%
-  filter(!is.na(diff_jenks))
+  filter(!is.na(diff_jenks)) %>%
+  st_intersection(wmata_area)
 
+# Comparing before/after
 ggplot() + 
   geom_sf(data = compare_plot, aes(color = diff_jenks, fill = diff_jenks)) + 
   geom_sf(data = wmata_shapes, color = "black") + 
-  coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
+  # coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
   scale_fill_viridis_d(direction = -1) + 
   scale_color_viridis_d(direction = -1) + 
   guides(fill = guide_legend(title = "access change after\nsilver line opening"),
          color = guide_legend(title = "access change after\nsilver line opening")) +
-  ggthemes::theme_map() 
+  ggthemes::theme_map()
+
+ggsave("output/comparison.png")
 
 
+# Before
+ggplot() + 
+  geom_sf(data = compare_plot, aes(color = accessibility.x, fill = accessibility.x)) + 
+  geom_sf(data = wmata_shapes, color = "black") + 
+  # coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
+  # scale_fill_viridis_d(direction = -1) + 
+  # scale_color_viridis_d(direction = -1) + 
+  guides(fill = guide_legend(title = "access score"),
+         color = guide_legend(title = "access score")) +
+  ggthemes::theme_map()
 
-ggplot() +
-  geom_sf(data = wmata_shapes) + 
-  coord_sf(xlim = c(-77.3, -76.5), ylim = c(38.85, 39.05), expand = FALSE)
+ggsave("output/before.png")
+
+# After
+ggplot() + 
+  geom_sf(data = compare_plot, aes(color = accessibility.y, fill = accessibility.y)) + 
+  geom_sf(data = wmata_shapes, color = "black") + 
+  # coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
+  # scale_fill_viridis_d(direction = -1) + 
+  # scale_color_viridis_d(direction = -1) + 
+  guides(fill = guide_legend(title = "access score"),
+         color = guide_legend(title = "access score")) +
+  ggthemes::theme_map()
+
+ggsave("output/after.png")
