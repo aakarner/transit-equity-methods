@@ -46,7 +46,7 @@ wmata_area <-
                          "Prince George's County") | 
          NAMELSAD == "Montgomery County" & STATEFP == 24) %>% # don't pull VA here
   st_union() %>%
-  st_transform("EPSG:4326")
+  st_transform("EPSG:2248")
 
 wmata_states <- states() %>% filter(NAME %in% c("Virginia", "Maryland"))
 
