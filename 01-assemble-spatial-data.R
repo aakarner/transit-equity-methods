@@ -29,7 +29,7 @@ dc_hex <-
 
 # WAMA service area: Arlington and Fairfax counties, the cities of Alexandria, 
 # Fairfax, and Falls Church in Virginia, the District of Columbia, and 
-# Montgomery and Prince George’s counties in Maryland. 
+# Montgomery and Prince George's counties in Maryland. 
 # Source: https://www.arlingtonva.us/files/sharedassets/public/budget/documents/fy22-p-30-metro-02.20.21.pdf
 
 # State FIPS codes:
