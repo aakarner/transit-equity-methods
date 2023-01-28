@@ -43,7 +43,7 @@ wmata_area <-
                          "Arlington County", "Fairfax County", "Alexandria city", 
                          "Fairfax city", "Falls Church city", 
                          "Prince George's County") | 
-         NAMELSAD == "Montgomery County" & STATEFP == 24)
+         NAMELSAD == "Montgomery County" & STATEFP == 24) # don't pull VA here
   
 
 wmata_states <- states() %>% filter(NAME %in% c("Virginia", "Maryland"))
