@@ -17,9 +17,9 @@ dc_cbsa <-
   filter(grepl("Washington-Arlington", NAME)) %>%
   st_transform("EPSG:2248")
 
-# 1640 is the desired size. Set to larger for now to make computations tractable.
+# 1640 is the desired size. Set larger as needed to make computations tractable.
 dc_hex <- 
-  st_make_grid(dc_cbsa, cellsize = 7500, square = FALSE) %>%
+  st_make_grid(dc_cbsa, cellsize = 1640, square = FALSE) %>%
   st_sf() %>%
   st_intersection(dc_cbsa) %>%
   mutate(hexid = as.numeric(row.names(.)))
@@ -37,10 +37,10 @@ demographics <-
   st_transform("EPSG:2248") %>%
   mutate(orig_area = units::drop_units(st_area(.)))
 
-ggplot() + 
-  geom_sf(data = dc_jobs_bg) + 
-  # geom_sf(data = demographics) + 
-  geom_sf(data = dc_cbsa, color = "red", fill = NA)
+# ggplot() + 
+#   geom_sf(data = dc_jobs_bg) + 
+#   # geom_sf(data = demographics) + 
+#   geom_sf(data = dc_cbsa, color = "red", fill = NA)
 
 hex_demogs <- 
   st_intersection(demographics, dc_hex) %>%

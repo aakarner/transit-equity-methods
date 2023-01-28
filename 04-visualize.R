@@ -7,20 +7,49 @@ after_gtfs <- read_gtfs("feeds_202301/f-dqc-wmata~rail.zip",
 
 wmata_shapes <- shapes_as_sf(after_gtfs$shapes)
 
-# Before access scores ---------------------------------------------------------
+# Prepare access scores --------------------------------------------------------
 
+after_med <- filter(after, percentile == 50)
 before_med <- filter(before, percentile == 50)
 
-jenks <- BAMMtools::getJenksBreaks(before_med$accessibility, 5, subset = NULL)
 
-before_med$acc_jenks <- cut(before_med$accessibility, jenks, include.lowest = TRUE)
-before_med$id <- as.numeric(before_med$id)
 
-before_plot <- left_join(dc_hex, before_med, by = c("hexid" = "id"))
+
+# Before access scores ---------------------------------------------------------
+
+
+
+# Compare scores 
+
+compare_scores <- 
+  inner_join(before_med, after_med, by = "id") %>%
+  mutate(difference = accessibility.y - accessibility.x)
+
+jenks <- BAMMtools::getJenksBreaks(compare_scores$difference, 5, subset = NULL)
+
+compare_scores$diff_jenks <- 
+  cut(compare_scores$difference, jenks, 
+      labels = c("< -14,000", "-14,000 - 5,000", "5,000 - 25,000", "> 25,000"),
+      include.lowest = TRUE)
+compare_scores$id <- as.numeric(compare_scores$id)
+
+compare_plot <- 
+  left_join(dc_hex, compare_scores, by = c("hexid" = "id")) %>%
+  st_transform("EPSG:4326") %>%
+  filter(!is.na(diff_jenks))
 
 ggplot() + 
-  geom_sf(data = before_plot, aes(color = acc_jenks, fill = acc_jenks)) + 
+  geom_sf(data = compare_plot, aes(color = diff_jenks, fill = diff_jenks)) + 
+  geom_sf(data = wmata_shapes, color = "black") + 
+  coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
   scale_fill_viridis_d(direction = -1) + 
   scale_color_viridis_d(direction = -1) + 
-  geom_sf(data = wmata_shapes, color = "black") + 
-  theme_bw()
+  guides(fill = guide_legend(title = "access change after\nsilver line opening"),
+         color = guide_legend(title = "access change after\nsilver line opening")) +
+  ggthemes::theme_map() 
+
+
+
+ggplot() +
+  geom_sf(data = wmata_shapes) + 
+  coord_sf(xlim = c(-77.3, -76.5), ylim = c(38.85, 39.05), expand = FALSE)
