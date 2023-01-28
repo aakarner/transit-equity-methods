@@ -55,3 +55,6 @@ rsconnect/
 
 # API keys
 *.key
+
+# zip files
+*.zip
