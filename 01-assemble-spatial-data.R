@@ -27,6 +27,33 @@ dc_hex <-
 # dc_hex$area <- st_area(dc_hex)
 # Area of each gridcell is 2,329,262 ft^2
 
+# WAMA service area: Arlington and Fairfax counties, the cities of Alexandria, 
+# Fairfax, and Falls Church in Virginia, the District of Columbia, and 
+# Montgomery and Prince George’s counties in Maryland. 
+# Source: https://www.arlingtonva.us/files/sharedassets/public/budget/documents/fy22-p-30-metro-02.20.21.pdf
+
+# State FIPS codes:
+# DC: 11
+# MD: 24
+# VA: 51
+
+wmata_area <- 
+  counties(state = c("DC", "MD", "VA")) %>%
+  filter(NAMELSAD %in% c("District of Columbia",
+                         "Arlington County", "Fairfax County", "Alexandria city", 
+                         "Fairfax city", "Falls Church city", 
+                         "Prince George's County") | 
+         NAMELSAD == "Montgomery County" & STATEFP == 24)
+  
+
+wmata_states <- states() %>% filter(NAME %in% c("Virginia", "Maryland"))
+
+ggplot() + 
+  # geom_sf(data = wmata_states, color = "black", fill = NA) + 
+  geom_sf(data = dc_cbsa, color = "black", fill = NA) + 
+  geom_sf(data = wmata_area, fill = "green") + 
+  ggthemes::theme_map()
+
 # Pull ACS data and interpolate to the grid cell level -------------------------
 demographics <- 
   get_acs(geography = "block group",
