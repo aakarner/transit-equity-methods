@@ -107,6 +107,22 @@ hex_jobs <-
   group_by(hexid) %>%
   summarize(jobs = sum(hex_jobs))
 
+# "Transit supply" -------------------------------------------------------------
+
+# DC sidewalks: https://opendata.dc.gov/datasets/2347fa1f3fd9412dbf11aa6441ddca8b_83/about
+# DC roadway sub-blocks (with bike infrastructure data): 
+# https://opendata.dc.gov/datasets/df571ab7fea446e396bf2862d0ab6833_162/explore?location=38.894927%2C-77.015000%2C12.73
+
+# Issue with reading a shapefile when there's inconsistent elevation information present
+# https://github.com/r-spatial/sf/issues/2081
+gdal_utils(util = "vectortranslate",
+           source = "D:/Dropbox/Work/transit-equity-pitfalls/data/Roadway_SubBlock.geojson",
+           destination = "D:/Dropbox/Work/transit-equity-pitfalls/data/Roadway_SubBlock_XY.geojson",
+           options = c("-dim", "XY"))
+
+dc_roads <- st_read("D:/Dropbox/Work/transit-equity-pitfalls/data/Roadway_SubBlock.geojson")
+
+
 # Merge demographic and jobs data ----------------------------------------------
 
 # Slight discrepancy in total hex counts is due to how features in water 
