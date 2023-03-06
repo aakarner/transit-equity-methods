@@ -5,10 +5,10 @@ library(tidytransit)
 
 # Pull WMATA rail --------------------------------------------------------------
 
-after_gtfs <- read_gtfs("feeds_202301/f-dqc-wmata~rail.zip", 
-                        files = NULL, quiet = TRUE)
+# after_gtfs <- read_gtfs("feeds_202301/f-dqc-wmata~rail.zip", 
+#                        files = NULL, quiet = TRUE)
 
-wmata_shapes <- shapes_as_sf(after_gtfs$shapes)
+# wmata_shapes <- shapes_as_sf(after_gtfs$shapes)
 
 wmata_shapes <- st_read("data/Metro_Lines_Regional.geojson")
 
