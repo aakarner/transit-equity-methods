@@ -10,6 +10,8 @@ library(lehdr)
 # EPSG: 2248 
 # https://epsg.io/2248
 
+# The TransitCenter Equity Dashboard uses data from the 2018 five-year ACS
+
 # Pull spatial data and create hexagon grid ------------------------------------
 
 dc_cbsa <- 
@@ -57,6 +59,12 @@ ggplot() +
   ggthemes::theme_map()
 
 # Pull ACS data and interpolate to the grid cell level -------------------------
+v18 <- load_variables(2018, "acs5", cache = TRUE)
+
+View(v18)
+
+demog_vars <- c(" ")
+
 demographics <- 
   get_acs(geography = "block group",
           variables = "B01001_001",

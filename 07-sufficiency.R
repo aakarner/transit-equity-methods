@@ -2,6 +2,12 @@ library(sf)
 library(dplyr)
 library(ggplot2)
 library(tidytransit)
+library(tigris)
+library(tidycensus)
+
+
+
+
 
 # Pull WMATA rail --------------------------------------------------------------
 
