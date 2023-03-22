@@ -1,6 +1,7 @@
 library(sf)
 library(dplyr)
 library(ggplot2)
+library(tidyr)
 library(tidytransit)
 library(tigris)
 library(tidycensus)
@@ -28,19 +29,38 @@ dc_scores <-
 dc_scores <-
   group_by(dc_scores, date) %>%
   mutate(std_score = scale(score),
-         std_demand = 
+         std_demand1 = scale(pop_poverty),
+         std_demand2 = 
            (scale(hhld_nocar) + scale(hhld_single_mother) + scale(pop_poverty)) / 3,
-         gap = std_demand - std_score, # Large +ve means a gap, large -ve means oversupply
-         categ = ifelse(std_demand > 0 & std_score > 0, "high-high",
-                 ifelse(std_demand > 0 & std_score < 0, "high-low",
-                 ifelse(std_demand < 0 & std_score < 0, "low-low",
-                 ifelse(std_demand < 0 & std_score > 0, "low-high", NA))))
+         gap1 = std_demand1 - std_score,
+         gap2 = std_demand2 - std_score, # Large +ve means a gap, large -ve means oversupply
+         categ = ifelse(std_demand1 > 0 & std_score > 0, "high-high",
+                 ifelse(std_demand1 > 0 & std_score < 0, "high-low",
+                 ifelse(std_demand1 < 0 & std_score < 0, "low-low",
+                 ifelse(std_demand1 < 0 & std_score > 0, "low-high", NA)))),
          )
 
-range(dc_scores$std_score)
-range(dc_scores$std_demand, na.rm = TRUE)
+dc_scores %>% 
+  st_drop_geometry() %>% 
+  ungroup() %>% 
+  group_by(categ) %>% 
+  summarize(pov_pop = sum(pop_poverty, na.rm = TRUE))
 
-summarize(dc_scores, avg_score = mean(std_score), sd_score = sd(std_score))
+dc_scores %>%
+  st_drop_geometry() %>%
+  pivot_longer(cols = std_score:std_demand2,
+               names_to = "var", 
+               values_to = "value") %>%
+  ggplot() + 
+    geom_density(aes(value, color = var, fill = var), alpha = 0.5) + 
+    theme_bw()
+
+range(dc_scores$std_score)
+range(dc_scores$std_demand1, na.rm = TRUE)
+range(dc_scores$std_demand2, na.rm = TRUE)
+
+summarize(dc_scores, avg_score = mean(std_score), sd_score1 = sd(std_score))
+
 
 # Histogram of scores
 ggplot() + 
@@ -56,22 +76,45 @@ ggplot() +
 
 # Basic choropleths of supply and demand centered on areas with rail service
 ggplot() + 
-  geom_sf(data = dc_scores, aes(color = std_demand, fill = std_demand)) + 
+  geom_sf(data = dc_scores, aes(color = std_demand1, fill = std_demand1)) + 
   geom_sf(data = wmata_shapes, color = "black") + 
+  geom_sf(data = wmata_states, color = grey(0.5), fill = NA) + 
   coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) + 
   scale_fill_viridis_c(direction = -1) + 
-  scale_color_viridis_c(direction = -1)
+  scale_color_viridis_c(direction = -1) + 
+  ggthemes::theme_map()
 
 ggplot() +
   geom_sf(data = dc_scores, aes(color = std_score, fill = std_score)) + 
   geom_sf(data = wmata_shapes, color = "black") + 
-  coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE)
+  geom_sf(data = wmata_states, color = grey(0.5), fill = NA) + 
+  coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) + 
+  scale_fill_viridis_c(direction = -1) + 
+  scale_color_viridis_c(direction = -1) + 
+  ggthemes::theme_map()
+
 
 # Is the "gap" being driven by a high demand or low supply?
 ggplot() + 
-  geom_point(data = filter(dc_scores, score > 500000),
-             aes(x = gap, y = std_score)) + 
+  geom_point(data = dc_scores,
+             aes(x = gap1, y = std_score, color = categ)) + 
+  scale_color_viridis_d() + 
   theme_bw()
+
+# What are the access conditions faced by people in poverty? 
+# This will help us establish a sufficiency threshold. 
+ggplot() + 
+  geom_histogram(data = dc_scores, 
+                 aes(std_score, weight = pop_poverty, color = categ, fill = categ)) + 
+  facet_wrap(~(gap1 > 0)) + 
+  theme_bw()
+
+
+
+
+ggplot() + 
+  geom_histogram(data = dc_scores, aes(std_score))
+
 
 ggplot() + 
   geom_point(data = dc_scores, aes(x = gap, y = std_demand)) + 
@@ -96,8 +139,9 @@ ggplot() +
 
 
 ggplot() + 
-  geom_sf(data = filter(dc_scores, score > 100000), aes(color = categ, fill = categ)) +
+  geom_sf(data = dc_scores, aes(color = categ, fill = categ)) +
   geom_sf(data = wmata_shapes, color = "black") + 
+  facet_wrap(~(gap1 > 0)) + 
   coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
   scale_fill_viridis_d() + 
   scale_color_viridis_d() + 

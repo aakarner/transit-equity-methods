@@ -50,7 +50,8 @@ wmata_area <-
   st_union() %>%
   st_transform("EPSG:2248")
 
-wmata_states <- states() %>% filter(NAME %in% c("Virginia", "Maryland"))
+wmata_states <- states() %>% filter(NAME %in% c("Virginia", "Maryland",
+                                                "District of Columbia"))
 
 ggplot() + 
   # geom_sf(data = wmata_states, color = "black", fill = NA) + 
