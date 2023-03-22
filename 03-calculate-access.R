@@ -16,7 +16,7 @@ max_trip_duration <- 180
 
 ## Scores prior to Silver line opening -----------------------------------------
 
-data_path <- "feeds_202211"
+data_path <- "data/feeds_202211"
 
 # Indicate the path where OSM and GTFS data are stored
 r5r_core <- setup_r5(data_path = data_path, verbose = FALSE)
