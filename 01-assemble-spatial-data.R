@@ -64,14 +64,18 @@ v18 <- load_variables(2018, "acs5", cache = TRUE)
 
 View(v18)
 
-demog_vars <- c(" ")
+demog_vars <- c(
+  "B01001_001", # total population
+  "B23025_001", # working-age population employed and not
+  "B25046_001") # aggregate vehicles available
 
 demographics <- 
   get_acs(geography = "block group",
-          variables = "B01001_001",
+          variables = demog_vars,
           state = c("DC", "MD", "VA", "WV"),
           geometry = TRUE,
-          year = 2021) %>%
+          output = "wide",
+          year = 2018) %>%
   st_transform("EPSG:2248") %>%
   mutate(orig_area = units::drop_units(st_area(.)))
 
