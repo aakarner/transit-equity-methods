@@ -6,18 +6,15 @@ library(tidytransit)
 library(tigris)
 library(tidycensus)
 
-
-
-
-
 # Pull WMATA rail --------------------------------------------------------------
 
 # after_gtfs <- read_gtfs("feeds_202301/f-dqc-wmata~rail.zip", 
-#                        files = NULL, quiet = TRUE)
+#                         files = NULL, quiet = TRUE)
 
 # wmata_shapes <- shapes_as_sf(after_gtfs$shapes)
 
 wmata_shapes <- st_read("data/Metro_Lines_Regional.geojson")
+
 
 ###
 
@@ -40,17 +37,23 @@ dc_scores <-
                  ifelse(std_demand1 < 0 & std_score > 0, "low-high", NA)))),
          )
 
+
+
 dc_scores %>% 
   st_drop_geometry() %>% 
   ungroup() %>% 
   group_by(categ) %>% 
-  summarize(pov_pop = sum(pop_poverty, na.rm = TRUE))
+  summarize(pop_total = sum(pop_total, na.rm = TRUE),
+            pov_pop = sum(pop_poverty, na.rm = TRUE),
+            desert = sum(gap1 > 0, na.rm = TRUE),
+            not_desert = sum(gap1 <= 0, na.rm = TRUE))
 
 dc_scores %>%
   st_drop_geometry() %>%
   pivot_longer(cols = std_score:std_demand2,
                names_to = "var", 
                values_to = "value") %>%
+  filter(!is.na(categ)) %>%
   ggplot() + 
     geom_density(aes(value, color = var, fill = var), alpha = 0.5) + 
     theme_bw()
@@ -59,7 +62,10 @@ range(dc_scores$std_score)
 range(dc_scores$std_demand1, na.rm = TRUE)
 range(dc_scores$std_demand2, na.rm = TRUE)
 
+
 summarize(dc_scores, avg_score = mean(std_score), sd_score1 = sd(std_score))
+
+# We can correct the scale using a different normalization approach
 
 
 # Histogram of scores
@@ -96,9 +102,11 @@ ggplot() +
 
 # Is the "gap" being driven by a high demand or low supply?
 ggplot() + 
-  geom_point(data = dc_scores,
+  geom_point(data = filter(dc_scores, !is.na(categ)),
              aes(x = gap1, y = std_score, color = categ)) + 
   scale_color_viridis_d() + 
+  xlab("\"gap\" (demand - supply)") + 
+  ylab("standardized access score") + 
   theme_bw()
 
 # What are the access conditions faced by people in poverty? 
@@ -139,13 +147,15 @@ ggplot() +
 
 
 ggplot() + 
-  geom_sf(data = dc_scores, aes(color = categ, fill = categ)) +
+  geom_sf(data = filter(dc_scores, !is.na(gap1)), aes(color = categ, fill = categ)) +
   geom_sf(data = wmata_shapes, color = "black") + 
   facet_wrap(~(gap1 > 0)) + 
   coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
   scale_fill_viridis_d() + 
   scale_color_viridis_d() + 
   ggthemes::theme_map()
+
+ggsave("output/whereAreGaps.png")
 
 # population totals in the categories
 
