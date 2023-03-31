@@ -20,7 +20,21 @@ wmata_shapes <- st_read("data/Metro_Lines_Regional.geojson")
 
 dc_scores <- 
   st_read("output/dc_scores.geojson") %>%
-  st_transform("EPSG:4326") 
+  st_transform("+init=EPSG:4326")
+
+dc_scores %>%
+  st_drop_geometry() %>%
+  group_by(date) %>%
+  summarize(white_wtd = sum(score * pop_white, na.rm = TRUE) / sum(pop_white, na.rm = TRUE), 
+          black_wtd = sum(score * pop_black, na.rm = TRUE) / sum(pop_black, na.rm = TRUE))
+
+
+dc_scores %>%
+  st_drop_geometry() %>%
+  group_by(date) %>%
+  summarize(overall_mean = mean(score, na.rm = TRUE), 
+            overall_med = median(score, na.rm = TRUE))
+
 
 # Standardize scores for a needs-gap analysis 
 dc_scores <-

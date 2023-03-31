@@ -1,4 +1,4 @@
-options(java.parameters = '-Xmx2G')
+options(java.parameters = '-Xmx12G')
 Sys.setenv(TZ = 'America/New_York')
 # Sys.setenv(JAVA_HOME='C:/Program Files/Java/jdk-11')
 
@@ -14,17 +14,6 @@ mode <- c("WALK", "TRANSIT")
 max_walk_time <- 60
 max_trip_duration <- 180
 
-## Travel time calculations
-data_path <- "data/feeds_202211"
-
-# Indicate the path where OSM and GTFS data are stored
-r5r_core <- setup_r5(data_path = data_path, verbose = FALSE)
-
-departure_datetime = as.POSIXct("11-09-2022 9:00:00", format = "%m-%d-%Y %H:%M:%S")
-
-ttm <- travel_time_matrix(
-  
-)
 
 ## Scores prior to Silver line opening -----------------------------------------
 
