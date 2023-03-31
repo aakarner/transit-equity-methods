@@ -15,6 +15,15 @@ library(tidycensus)
 
 wmata_shapes <- st_read("data/Metro_Lines_Regional.geojson")
 
+# Demographic map
+dc_to_map <- 
+  dc_scores %>%
+  mutate(share_black = pop_black / pop_total,
+         share_white = pop_white / pop_total)
+
+ggplot(dc_to_map) + 
+  geom_sf(aes(col = share_black, fill = share_black))
+
 
 ###
 
@@ -169,6 +178,7 @@ ggplot() +
 ggplot() + 
   geom_sf(data = dc_scores, aes(fill = gap1 > 0), color = NA) +
   geom_sf(data = wmata_shapes, color = "white") +
+  facet_wrap(~ date) + 
   coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
   scale_fill_manual(values = c("#5FA052", "#D7504D")) + 
   ggthemes::theme_map()
@@ -178,7 +188,8 @@ ggsave("output/basicDeserts.png")
 ggplot() + 
   geom_sf(data = filter(dc_scores, !is.na(gap1)), aes(color = categ, fill = categ)) +
   geom_sf(data = wmata_shapes, color = "black") + 
-  facet_wrap(~(gap1 > 0)) + 
+  geom_sf(data = wmata_states, color = grey(0.5), fill = NA) + 
+  facet_wrap(~(gap1 > 0) + date) + 
   coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
   scale_fill_viridis_d() + 
   scale_color_viridis_d() + 
