@@ -28,8 +28,11 @@ dc_scores %>%
   st_drop_geometry() %>%
   filter(GEOID %in% urban_def$bg_id) %>%
   group_by(date) %>%
-  summarize(white_wtd = sum(score * pop_white, na.rm = TRUE) / sum(pop_white, na.rm = TRUE), 
-          black_wtd = sum(score * pop_black, na.rm = TRUE) / sum(pop_black, na.rm = TRUE))
+  summarize(
+    white_wtd = 
+      sum(score * pop_white, na.rm = TRUE) / sum(pop_white, na.rm = TRUE), 
+    black_wtd = 
+      sum(score * pop_black, na.rm = TRUE) / sum(pop_black, na.rm = TRUE))
 
 
 dc_scores %>%
@@ -41,7 +44,9 @@ dc_scores %>%
 
 # Standardize scores for a needs-gap analysis 
 dc_scores <-
-  group_by(dc_scores, date) %>%
+  dc_scores %>%
+  filter(GEOID %in% urban_def$bg_id) %>%
+  group_by(date) %>%
   mutate(std_score = scale(score),
          std_demand1 = scale(pop_poverty),
          std_demand2 = 
@@ -152,16 +157,23 @@ ggplot() +
   ylab("standardized demand score")
 
 # Where are gaps
+# ggplot() + 
+#   geom_sf(data = filter(dc_scores, score > 0), aes(color = gap, fill = gap)) +
+#   geom_sf(data = wmata_shapes, color = "black") + 
+#   facet_wrap(~ date) + 
+#   coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
+#   scale_fill_viridis_c() + 
+#   scale_color_viridis_c() + 
+#   ggthemes::theme_map()
+
 ggplot() + 
-  geom_sf(data = filter(dc_scores, score > 0), aes(color = gap, fill = gap)) +
-  geom_sf(data = wmata_shapes, color = "black") + 
-  facet_wrap(~ date) + 
+  geom_sf(data = dc_scores, aes(fill = gap1 > 0), color = NA) +
+  geom_sf(data = wmata_shapes, color = "white") +
   coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
-  scale_fill_viridis_c() + 
-  scale_color_viridis_c() + 
+  scale_fill_manual(values = c("#5FA052", "#D7504D")) + 
   ggthemes::theme_map()
 
-
+ggsave("output/basicDeserts.png")
 
 ggplot() + 
   geom_sf(data = filter(dc_scores, !is.na(gap1)), aes(color = categ, fill = categ)) +
@@ -172,7 +184,7 @@ ggplot() +
   scale_color_viridis_d() + 
   ggthemes::theme_map()
 
-ggsave("output/whereAreGaps.png")
+ggsave("output/gapTypes.png")
 
 # population totals in the categories
 
