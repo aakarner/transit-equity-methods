@@ -22,8 +22,11 @@ dc_scores <-
   st_read("output/dc_scores.geojson") %>%
   st_transform("+init=EPSG:4326")
 
+urban_def <- read.csv("data/urban.csv")
+
 dc_scores %>%
   st_drop_geometry() %>%
+  filter(GEOID %in% urban_def$bg_id) %>%
   group_by(date) %>%
   summarize(white_wtd = sum(score * pop_white, na.rm = TRUE) / sum(pop_white, na.rm = TRUE), 
           black_wtd = sum(score * pop_black, na.rm = TRUE) / sum(pop_black, na.rm = TRUE))

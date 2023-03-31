@@ -1,5 +1,6 @@
 library(sf)
 library(dplyr)
+library(tidycensus)
 
 dc_bgs <- 
   st_read("data/dc_bg.geojson") %>%
