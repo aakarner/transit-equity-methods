@@ -148,13 +148,16 @@ ggplot() +
   scale_color_viridis_d() + 
   xlab("\"gap\" (demand - supply)") + 
   ylab("standardized access score") + 
+  facet_wrap(~ date) + 
   guides(color = guide_legend(title = "demand-supply")) +
   theme_bw() + 
-  theme(legend.position = c(0.9, 0.8),
-        legend.background = element_blank(),
-        legend.box.background = element_rect(colour = "black"))
+  theme(legend.position = "bottom")
+  
+  # theme(legend.position = c(0.9, 0.8),
+  #       legend.background = element_blank(),
+  #       legend.box.background = element_rect(colour = "black"))
 
-ggsave("output/supplyGapScatter.png", width = 7.5, height = 4)
+ggsave("figures/supplyGapScatter.png", width = 7.5, height = 4)
 
 # What are the access conditions faced by people in poverty? 
 # This will help us establish a sufficiency threshold. 
@@ -224,29 +227,43 @@ ggplot() +
     plot_unit = "ft") + 
   annotation_north_arrow(style = north_arrow_minimal())
 
-ggsave("output/basicDeserts.png", width = 9, height = 4.5)
+ggsave("figures/basicDeserts.png", width = 9, height = 4.5)
 
 ggplot() + 
   geom_sf(data = filter(dc_scores_final, !is.na(gap1)), aes(color = categ, fill = categ)) +
-  geom_sf(data = wmata_shapes, color = "black") + 
-  geom_sf(data = wmata_states, color = grey(0.5), fill = NA) + 
-  facet_wrap(~(gap1 > 0) + date) + 
+  geom_sf(data = wmata_shapes, color = "white") + 
+  geom_sf(data = wmata_states, color = "black", fill = NA) + 
+  facet_wrap(~`desert status` + date) + 
   # coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
   coord_sf(xlim = c(1226715.965140128, 1369011.5944263502), ylim = c(376465.63918774325, 540355.250319933)) + 
   scale_fill_viridis_d() + 
   scale_color_viridis_d() + 
-  ggthemes::theme_map()
+  ggthemes::theme_map() + 
+  theme(panel.background = element_rect(fill = grey(0.9)))
 
 ggsave("output/gapTypes.png")
 
 # population totals in the categories
 
-dc_scores %>%
-  filter(score > 100000) %>%
+lollipop <- 
+  dc_scores_final %>%
+  # filter(score > 100000) %>%
   st_drop_geometry() %>%
-  group_by(categ) %>%
-  summarize(totpop = sum(pop_total, na.rm = TRUE))
+  group_by(categ, date, `desert status`) %>%
+  summarize(totpop = sum(pop_total, na.rm = TRUE),
+            num_bgs = n(),
+            med_score = median(score)) %>%
+  arrange(categ, date, `desert status`)
 
+ggplot(lollipop) +
+  geom_point(aes(x = totpop, y = categ, color = `desert status`))
+
+
+ggplot(lollipop) + 
+  geom_bar(aes(color = categ, fill = categ, x = totpop, y = `desert status`), stat = "identity") +
+  facet_wrap(~ date) + 
+  scale_fill_viridis_d() +
+  scale_color_viridis_d()
 
 # Show that there are many places with large "gaps" that are on heavy rail
 # Show that the relative nature of the measure is silly when there's a big service cut since
