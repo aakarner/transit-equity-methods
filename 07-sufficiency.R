@@ -1,6 +1,7 @@
 library(sf)
 library(dplyr)
 library(ggplot2)
+library(ggspatial)
 library(tidyr)
 library(tidytransit)
 library(tigris)
@@ -14,16 +15,6 @@ library(tidycensus)
 # wmata_shapes <- shapes_as_sf(after_gtfs$shapes)
 
 wmata_shapes <- st_read("data/Metro_Lines_Regional.geojson")
-
-# Demographic map
-dc_to_map <- 
-  dc_scores %>%
-  mutate(share_black = pop_black / pop_total,
-         share_white = pop_white / pop_total)
-
-ggplot(dc_to_map) + 
-  geom_sf(aes(col = share_black, fill = share_black))
-
 
 ###
 
@@ -52,7 +43,7 @@ dc_scores %>%
 
 
 # Standardize scores for a needs-gap analysis 
-dc_scores <-
+dc_scores_final <-
   dc_scores %>%
   filter(GEOID %in% urban_def$bg_id) %>%
   group_by(date) %>%
@@ -66,18 +57,30 @@ dc_scores <-
                  ifelse(std_demand1 > 0 & std_score < 0, "high-low",
                  ifelse(std_demand1 < 0 & std_score < 0, "low-low",
                  ifelse(std_demand1 < 0 & std_score > 0, "low-high", NA)))),
-         )
+         below_med = ifelse(score < 138169, 1, 0),
+         `desert status` = ifelse(gap1 > 0, "desert", "not")
+         ) %>%
+  st_transform("EPSG:2248")
 
-
-
-dc_scores %>% 
+dc_scores_final %>% 
   st_drop_geometry() %>% 
   ungroup() %>% 
-  group_by(categ) %>% 
+  group_by(categ, date) %>% 
   summarize(pop_total = sum(pop_total, na.rm = TRUE),
             pov_pop = sum(pop_poverty, na.rm = TRUE),
             desert = sum(gap1 > 0, na.rm = TRUE),
-            not_desert = sum(gap1 <= 0, na.rm = TRUE))
+            not_desert = sum(gap1 <= 0, na.rm = TRUE)) %>%
+  arrange(date, categ)
+
+# How many people are in deserts before and after the covid cut? 
+dc_scores_final %>% 
+  st_drop_geometry() %>% 
+  ungroup() %>% 
+  group_by(date, `desert status`) %>% 
+  summarize(pop_total = sum(pop_total, na.rm = TRUE),
+            pov_pop = sum(pop_poverty, na.rm = TRUE),
+            count = n()) %>%
+  arrange(date, `desert status`)
 
 dc_scores %>%
   st_drop_geometry() %>%
@@ -96,7 +99,14 @@ range(dc_scores$std_demand2, na.rm = TRUE)
 
 summarize(dc_scores, avg_score = mean(std_score), sd_score1 = sd(std_score))
 
-# We can correct the scale using a different normalization approach
+# Demographic map
+dc_to_map <- 
+  dc_scores %>%
+  mutate(share_black = pop_black / pop_total,
+         share_white = pop_white / pop_total)
+
+ggplot(dc_to_map) + 
+  geom_sf(aes(col = share_black, fill = share_black))
 
 
 # Histogram of scores
@@ -133,12 +143,18 @@ ggplot() +
 
 # Is the "gap" being driven by a high demand or low supply?
 ggplot() + 
-  geom_point(data = filter(dc_scores, !is.na(categ)),
+  geom_point(data = filter(dc_scores_final, !is.na(categ)),
              aes(x = gap1, y = std_score, color = categ)) + 
   scale_color_viridis_d() + 
   xlab("\"gap\" (demand - supply)") + 
   ylab("standardized access score") + 
-  theme_bw()
+  guides(color = guide_legend(title = "demand-supply")) +
+  theme_bw() + 
+  theme(legend.position = c(0.9, 0.8),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black"))
+
+ggsave("output/supplyGapScatter.png", width = 7.5, height = 4)
 
 # What are the access conditions faced by people in poverty? 
 # This will help us establish a sufficiency threshold. 
@@ -175,22 +191,48 @@ ggplot() +
 #   scale_color_viridis_c() + 
 #   ggthemes::theme_map()
 
+# Where are deserts?
+
+scale_params <- tibble::tibble(
+  date = c("June 2020"),
+  width_hint = 0.25,
+  style = c("bar"),
+  location = c("br"),
+  unit_category = c("imperial"),
+  text_col = c("black"),
+  line_col = c("black")
+)
+
 ggplot() + 
-  geom_sf(data = dc_scores, aes(fill = gap1 > 0), color = NA) +
+  geom_sf(data = dc_scores_final, aes(fill = `desert status`), color = NA) +
   geom_sf(data = wmata_shapes, color = "white") +
+  geom_sf(data = wmata_states, fill = NA, col = "black") + 
   facet_wrap(~ date) + 
-  coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
-  scale_fill_manual(values = c("#5FA052", "#D7504D")) + 
-  ggthemes::theme_map()
+  # coord_sf(xlim = c(-77.3, -76.8), ylim = c(38.7, 39.15), expand = FALSE) +
+  coord_sf(xlim = c(1226715.965140128, 1369011.5944263502), ylim = c(376465.63918774325, 540355.250319933)) + 
+  scale_fill_manual(values = c("#D7504D", "#5FA052")) +
+  ggthemes::theme_map() + 
+  theme(panel.background = element_rect(fill = grey(0.9))) + 
+  annotation_scale(
+    aes(width_hint = width_hint, 
+        style = style, 
+        location = location, 
+        unit_category = unit_category,
+        text_col = text_col, 
+        line_col = line_col),
+    data = scale_params,
+    plot_unit = "ft") + 
+  annotation_north_arrow(style = north_arrow_minimal())
 
-ggsave("output/basicDeserts.png")
+ggsave("output/basicDeserts.png", width = 9, height = 4.5)
 
 ggplot() + 
-  geom_sf(data = filter(dc_scores, !is.na(gap1)), aes(color = categ, fill = categ)) +
+  geom_sf(data = filter(dc_scores_final, !is.na(gap1)), aes(color = categ, fill = categ)) +
   geom_sf(data = wmata_shapes, color = "black") + 
   geom_sf(data = wmata_states, color = grey(0.5), fill = NA) + 
   facet_wrap(~(gap1 > 0) + date) + 
-  coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
+  # coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) +
+  coord_sf(xlim = c(1226715.965140128, 1369011.5944263502), ylim = c(376465.63918774325, 540355.250319933)) + 
   scale_fill_viridis_d() + 
   scale_color_viridis_d() + 
   ggthemes::theme_map()
