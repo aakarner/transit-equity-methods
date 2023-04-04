@@ -265,7 +265,15 @@ ggplot(lollipop) +
   scale_fill_viridis_d() +
   scale_color_viridis_d()
 
-# Show that there are many places with large "gaps" that are on heavy rail
-# Show that the relative nature of the measure is silly when there's a big service cut since
-# the gaps won't change at all. Many people would be below the threshold but the 
-# "desert" doesn't change.
+# Auto access - sufficiency ----------------------------------------------------
+
+auto_access <-
+    inner_join(dc_bgs,
+      read.csv("data/auto_accessibility.csv",
+               colClasses = c("GEOID" = "character")))
+
+
+ggplot() + 
+  geom_sf(data = auto_access, aes(color = C000_P_c45_AM, fill = C000_P_c45_AM))
+
+          
