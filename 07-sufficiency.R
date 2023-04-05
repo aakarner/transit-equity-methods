@@ -99,7 +99,7 @@ range(dc_scores$std_demand2, na.rm = TRUE)
 
 summarize(dc_scores, avg_score = mean(std_score), sd_score1 = sd(std_score))
 
-# Demographic map
+# Demographic map --------------------------------------------------------------
 dc_to_map <- 
   dc_scores %>%
   mutate(share_black = pop_black / pop_total,
@@ -116,12 +116,12 @@ ggplot() +
 ggplot() + 
   geom_histogram(data = dc_scores, aes(demand)) 
 
-# Basic regional map
+# Basic regional map -----------------------------------------------------------
 ggplot() + 
   geom_sf(data = dc_scores)
 
 
-# Basic choropleths of supply and demand centered on areas with rail service
+# Basic choropleths of supply and demand centered on areas with rail service -----
 ggplot() + 
   geom_sf(data = dc_scores, aes(color = std_demand1, fill = std_demand1)) + 
   geom_sf(data = wmata_shapes, color = "black") + 
@@ -141,7 +141,7 @@ ggplot() +
   ggthemes::theme_map()
 
 
-# Is the "gap" being driven by a high demand or low supply?
+# Is the "gap" being driven by a high demand or low supply? --------------------
 ggplot() + 
   geom_point(data = filter(dc_scores_final, !is.na(categ)),
              aes(x = gap1, y = std_score, color = categ)) + 
@@ -184,7 +184,7 @@ ggplot() +
   xlab("standardized access score (supply)") + 
   ylab("standardized demand score")
 
-# Where are gaps
+# Where are gaps ---------------------------------------------------------------
 # ggplot() + 
 #   geom_sf(data = filter(dc_scores, score > 0), aes(color = gap, fill = gap)) +
 #   geom_sf(data = wmata_shapes, color = "black") + 
@@ -194,7 +194,7 @@ ggplot() +
 #   scale_color_viridis_c() + 
 #   ggthemes::theme_map()
 
-# Where are deserts?
+# Where are deserts? -----------------------------------------------------------
 
 scale_params <- tibble::tibble(
   date = c("June 2020"),
@@ -243,7 +243,7 @@ ggplot() +
 
 ggsave("output/gapTypes.png")
 
-# population totals in the categories
+# population totals in the categories ------------------------------------------
 
 lollipop <- 
   dc_scores_final %>%
@@ -265,7 +265,7 @@ ggplot(lollipop) +
   scale_fill_viridis_d() +
   scale_color_viridis_d()
 
-# Auto access - sufficiency ----------------------------------------------------
+# Sufficiency analysis ---------------------------------------------------------
 
 auto_access <-
     inner_join(dc_bgs,
@@ -276,4 +276,24 @@ auto_access <-
 ggplot() + 
   geom_sf(data = auto_access, aes(color = C000_P_c45_AM, fill = C000_P_c45_AM))
 
-          
+# Distribution of transit access
+quantile(filter(dc_scores_final, date == "Feb. 2020")$score, c(seq(0.1, 0.5, 0.1)))
+
+sufficiency <- 
+  dc_scores_final %>%
+  mutate(acc_quant = 
+           cut(score, 
+               breaks = c(0, 24694.55,  42947.60,  65159.75,  95754.40, 138169.00, 1e6)))
+
+suff_table <- 
+  sufficiency %>%
+    st_drop_geometry() %>%
+    group_by(acc_quant, date) %>%
+    summarize(total_pop = sum(pop_total),
+              black_pop = sum(pop_black),
+              white_pop = sum(pop_white),
+              asian_pop = sum(pop_asiapacific),
+              latinx_pop = sum(pop_hispanic),
+              indig_pop = sum(pop_indig),
+              pov_pop = sum(pop_poverty)) %>%
+  arrange(date, acc_quant)
