@@ -332,7 +332,7 @@ setDT(df)
 
 
 # select colums and reshape to long format
-df_inc <- df[, .(GEOID, score, deciles, dec_inc, scenario, pop_total, difference)]
+df_inc <- df[, .(GEOID, score, med_inc, deciles, dec_inc, scenario, pop_total, difference)]
 df_inc <- df_inc[!is.na(dec_inc)]
 table(df_inc$dec_inc, useNA = "always")
 
@@ -409,23 +409,29 @@ lorenz_df <- rbind(lorenz_total, lorenz_inc)
 
 fig_lorenz_inc <- ggplot(data=lorenz_inc) +
   geom_line(aes(x=p, y=L, color=dec_inc)) +
-  scale_x_continuous(name="Cumulative share of Population",
+  scale_x_continuous(name="Cumulative share of population\nranked by accessibility level",
                      expand = c(0, 0), labels = c(0, .25, .5, .75, 1)) + 
   scale_y_continuous(name="Cumulative share of Access",
                      expand = c(0, 0)) +
   labs(color = 'Group') +
   scale_color_brewer(name ='Incomde\ndeciles', palette = 'BrBG', direction = -1) + 
   facet_wrap(~ scenario, nrow = 1) +
-  geom_abline() +
-  theme_classic() +
-  theme(strip.background = element_rect(fill=NA, color=NA))
+  geom_abline(linetype = "dashed") +
+  coord_fixed()  +
+#  theme_classic() +
+  theme_minimal() +
+  theme(strip.background = element_rect(fill=NA, color=NA)) 
+
+
+
+
 
 fig_lorenz_inc
-# ggsave(fig_lorenz_race, 
-#        file = './figures/fig_lorenz_race.png', 
+# ggsave(fig_lorenz_inc,
+#        file = './figures/fig_lorenz_inc.png',
 #        width = 16, height = 8, dpi = 200, units = 'cm')
-
-
+# 
+# 
 
 
 
@@ -615,18 +621,61 @@ ggsave(fig_theil_total2,
 
 ## 3.6 concentration index --------------------------------------------------------------
 
-calcSConc(df_inc$score, df_inc$deciles, w= df_inc$pop_total)
+conc_index <- df_inc[, concentr(x= score, med_inc, w= pop_total), by =scenario]
 
+
+# decompose concentration index
 temp_before <- subset(df_inc, scenario == 'Before')
 temp_after <- subset(df_inc, scenario == 'After')
 
-b <- calcSConc(temp_before$score, temp_before$deciles, w= temp_before$pop_total)
-calcSConc(temp_after$score, temp_after$deciles, w= temp_after$pop_total)
+decomp_concentr(x = temp_before$score, 
+                y = temp_before$med_inc,
+                nonOverlaping_groups = temp_before$deciles, 
+                w= temp_before$pop_total)
+
+decomp_concentr(x = temp_after$score, 
+                y = temp_after$med_inc,
+                nonOverlaping_groups = temp_after$deciles, 
+                w= temp_after$pop_total)
 
 
-curveConcent(temp_after$score, temp_after$deciles, w= temp_after$pop_total)
-curveConcent(temp_before$score, temp_before$deciles, w= temp_before$pop_total)
+##### 3.6.1 concentration curve ------------------------
+temp_after <- temp_after[order(med_inc, deciles, score)]
+temp_before <- temp_before[order(med_inc, deciles, score)]
+
+conc_curve_before <- temp_before[, .(x = cumsum(pop_total)/max(cumsum(pop_total)),
+                                     y = cumsum(score*pop_total)/max(cumsum(score*pop_total)),
+                                     scenario = 'Before'
+                                     )]
+
+conc_curve_after <- temp_after[, .(x = cumsum(pop_total)/max(cumsum(pop_total)),
+                                   y = cumsum(score*pop_total)/max(cumsum(score*pop_total)),
+                                   scenario = 'After'
+                                   )]
+
+df_conc_curve <- rbind(conc_curve_before, conc_curve_after)
+
+fig_conc_curve <- ggplot(data=df_conc_curve) +
+                    geom_line(aes(x=x, y=y, color = scenario)) +
+                    scale_x_continuous(name="Cumulative share of Population\nsorted by income",
+                                       expand = c(0, 0), labels = scales::percent) + 
+                    scale_y_continuous(name="Cumulative share of Access",
+                                       expand = c(0, 0), labels = scales::percent) +
+                    labs(color = '') +
+                    # scale_color_brewer(name ='Incomde\ndeciles', palette = 'BrBG', direction = -1) + 
+                    # facet_wrap(~ scenario, nrow = 1) +
+                    geom_abline(linetype = "dashed") +
+                    theme_minimal() +
+                    coord_fixed()  +
+                    theme(axis.line = element_line(colour = "gray90", linetype=1))
+
+fig_conc_curve
+
+ggsave(fig_conc_curve, 
+       file = './figures/fig_conc_curve.png', 
+       width =16, height = 16, dpi = 200, units = 'cm')
 
 
-
-summary.ICI(b)
+# sanity check
+curveConcent(temp_after$score, temp_after$med_inc, w= temp_after$pop_total)
+curveConcent(temp_before$score, temp_before$deciles, w= temp_before$pop_total, add=T, col='red')

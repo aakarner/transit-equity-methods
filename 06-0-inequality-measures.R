@@ -116,7 +116,106 @@ gini = function(x, w = NULL){
         
 }
 
- 
+concentr = function(x, y, w = NULL){
+  
+  if(is.null(w)){
+    w = rep(1, length(x))
+  }
+  
+  complete = complete.cases(x, y, w) & (x >= 0) & (y >= 0)
+  x_c = x[complete]
+  y_c = y[complete]
+  w_c = w[complete]
+  
+  o = order(y_c)
+  x_o = x_c[o]
+  y_o = x_c[o]
+  w_o = w_c[o]
+  
+  x_cum = c(0, cumsum(x_o * w_o)/sum(x_o * w_o))
+  w_cum = c(0, cumsum(w_o)/sum(w_o))
+  
+  b = x_cum[-length(x_cum)]
+  B = x_cum[-1]
+  h = diff(w_cum)
+  
+  area_under_concentrationCurve = sum( ((B + b)*h)/2 )
+  
+  1 - 2*area_under_concentrationCurve
+  
+}
+
+
+decomp_concentr = function(x, y, nonOverlaping_groups, w = NULL){
+  
+  groups = nonOverlaping_groups
+  
+  if(is.null(w)){
+    w = rep(1, length(x))
+  }
+  
+  complete = complete.cases(x, y, w) & (x >= 0) & (y >= 0)
+  x_c = x[complete]
+  y_c = y[complete]
+  w_c = w[complete]
+  groups_c = groups[complete]
+  
+  o = order(y_c)
+  x_o = x_c[o]
+  y_o = y_c[o]
+  w_o = w_c[o]
+  groups_o = groups_c[o]
+  
+  x_cum = c(0, cumsum(x_o * w_o)/sum(x_o * w_o))
+  w_cum = c(0, cumsum(w_o)/sum(w_o))
+  
+  b = x_cum[-length(x_cum)]
+  B = x_cum[-1]
+  h = diff(w_cum)
+  
+  tmp = data.table(x_ = x_o,
+                   y_ = y_o,
+                   w_ = w_o,
+                   b,
+                   B,
+                   h, 
+                   groups_ = groups_o)
+  
+  #area_under_concentrationCurve = with(tmp, sum( ((B + b)*h)/2 ) )
+  
+  tmp2 = tmp[order(groups_c), 
+             .(p_j        = sum(w_)/sum(tmp$w_),
+               s_j        = sum(x_*w_)/sum(tmp$x_ * tmp$w_),
+               concentr_j = concentr(x_, y_, w_)), 
+             by = groups_]
+  
+  tmp2[ , p_cum := cumsum(p_j)]
+  tmp2[ , s_cum := cumsum(s_j)]
+  
+  tmp2[ , within_component := (p_j * s_j * concentr_j)]
+  
+  concentrationCoefficient = concentr(x, y, w)
+  between = tmp2[ , sum(p_j - p_j*(2*s_cum - s_j))]
+  within  = tmp2[ , sum(within_component)]
+  
+  test = round(concentrationCoefficient, 3) == round(between + within, 3)
+  if(!test){
+    stop("Between and within components do not sum up to the total Concentration Coefficient")
+  }
+  
+  list(concentrationCoefficient = concentrationCoefficient,
+       
+       main_components = data.table(component    = c("between", "within", "total"),
+                                    value        = c(between, within, concentrationCoefficient),
+                                    contribution = c(between, within, concentrationCoefficient)/concentrationCoefficient),
+       
+       within_components =  tmp2[ , .(groups_, 
+                                      within_component, 
+                                      contribution_to_within = within_component/within,
+                                      contribution_to_total  = within_component/concentrationCoefficient)])
+}
+
+
 # df[, IC2::calcSGini(x, w)]$ineq$index
 # df[, gini(x, w)]
 # 
