@@ -81,7 +81,7 @@ fig_blacks <- ggplot() +
   # geom_sf(data = wmata_shapes, color = "black") + 
   # geom_sf(data = wmata_states, color = grey(0.5), fill = NA) + 
   coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) + 
-  scale_fill_distiller(name ='Proportion\nof blacks', palette = 'Purples', direction = 1, labels = scales::percent) + 
+  scale_fill_distiller(name ='Share of Black\npopulation', palette = 'Purples', direction = 1, labels = scales::percent) + 
   ggthemes::theme_map()
 
 # choropleth of white pop
@@ -90,7 +90,7 @@ fig_whites <- ggplot() +
   # geom_sf(data = wmata_shapes, color = "black") + 
   # geom_sf(data = wmata_states, color = grey(0.5), fill = NA) + 
   coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) + 
-  scale_fill_distiller(name ='Proportion\nof whites', palette = 'Oranges', direction = 1, labels = scales::percent) + 
+  scale_fill_distiller(name ='Share of white\npopulation', palette = 'Oranges', direction = 1, labels = scales::percent) + 
   ggthemes::theme_map()
 
 
