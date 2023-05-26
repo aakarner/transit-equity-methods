@@ -128,10 +128,14 @@ ggsave(fig_deciles,
 # choropleth of accessibility
 fig_access_ba <- ggplot() +
   geom_sf(data = dc_scores, aes(fill = score), color = NA) + 
+  geom_sf(data = wmata_states_clip, color = grey(0.5), fill = NA) +
   # geom_sf(data = wmata_shapes, color = "black") + 
   # geom_sf(data = wmata_states, color = grey(0.5), fill = NA) + 
-  coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) + 
-  scale_fill_viridis_c(name ='Accessibility', labels = scales::comma, direction = -1) + 
+  coord_sf(xlim = c(-77.6, -76.75), ylim = c(38.7, 39.2), expand = FALSE) + 
+  scale_fill_viridis_c(
+    name ='accessibility\n(jobs reachable in\n45 minutes on\npublic transit)', 
+    labels = scales::comma, 
+    direction = -1) + 
   facet_wrap(~ scenario, nrow = 1) +
   ggthemes::theme_map() +
   theme(strip.background = element_rect(fill=NA, color=NA))
@@ -142,12 +146,13 @@ min_value <- -1 * max_value
 
 fig_impact <- ggplot() +
   geom_sf(data = subset(dc_scores,!is.na(difference)), aes(fill = difference), color = NA) + 
+  geom_sf(data = wmata_states_clip, color = grey(0.5), fill = NA) +
   # geom_sf(data = wmata_shapes, color = "black") + 
   # geom_sf(data = wmata_states, color = grey(0.5), fill = NA) + 
-  scale_fill_distiller(name ='Access\nimpact', palette = 'RdBu', 
+  scale_fill_distiller(name ='accessibility change\n(after - before)', palette = 'RdBu', 
                        direction = 1, labels = scales::comma,
                        limits = c(min_value, max_value)) + 
-  coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) + 
+  coord_sf(xlim = c(-77.6, -76.75), ylim = c(38.7, 39.2), expand = FALSE) + 
   ggthemes::theme_map()
 
 fig_access <- fig_access_ba / fig_impact + 
@@ -157,6 +162,6 @@ fig_access <- fig_access_ba / fig_impact +
 fig_access
 
 ggsave(fig_access, 
-       file = './figures/fig_access.png', 
+       file = 'figures/fig_access.png', 
        width = 16, height = 16, dpi = 200, units = 'cm')
 
