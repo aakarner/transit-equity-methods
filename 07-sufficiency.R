@@ -279,11 +279,23 @@ ggplot() +
 # Distribution of transit access
 quantile(filter(dc_scores_final, date == "Feb. 2020")$score, c(seq(0.1, 0.5, 0.1)))
 
+acc_quantiles <- 
+  Hmisc::wtd.quantile(
+    filter(dc_scores_final, date == "Feb. 2020")$score,
+    weights = dc_scores_final$pop_total, 
+    probs=c( seq(0 , 1 , 0.1) ), 
+    type=c('quantile'), 
+    normwt = FALSE, 
+    na.rm=T)
+
 sufficiency <- 
   dc_scores_final %>%
-  mutate(acc_quant = 
-           cut(score, 
-               breaks = c(0, 24694.55,  42947.60,  65159.75,  95754.40, 138169.00, 1e6)))
+  st_drop_geometry() %>%
+  mutate(acc_quant = findInterval(score, acc_quantiles[-length(acc_quantiles)]),
+         inc_dec = findInterval(med_inc, deciles[-length(deciles)]))
+
+# it's not correct to just total everyone in that category - it's cumulative
+# has to be all in that quantile and below
 
 suff_table <- 
   sufficiency %>%
@@ -297,3 +309,66 @@ suff_table <-
               indig_pop = sum(pop_indig),
               pov_pop = sum(pop_poverty)) %>%
   arrange(date, acc_quant)
+
+# We want a figure that shows changes in the FGT measures from feb-june by demographic
+# group by thresholds 
+
+suff_long <- 
+  pivot_longer(sufficiency, 
+               cols = hhld_nocar:workers_essential,
+               names_to = "pop_group",
+               values_to = "pop_total")
+
+fgt <- function(df, threshold, grouping_var) {
+  totals <- 
+    df %>%
+    group_by(eval(parse(text  = grouping_var))) %>%
+    summarize(pop_total = sum(pop_total) / 2) # to account for two dates
+  
+  headcount <-
+    df %>%
+    group_by(date, eval(parse(text  = grouping_var))) %>%
+    filter(score <= threshold) %>%
+    summarize(fgt0_toSum = sum(pop_total),
+              fgt1_toSum = sum(pop_total * ((threshold - score)/threshold)),
+              fgt2_toSum = sum(pop_total * ((threshold - score)/threshold)^2))
+  
+  fg <- mutate(headcount, 
+               fgt0 = fgt0_toSum / totals$pop_total,
+               fgt1 = fgt1_toSum / totals$pop_total,
+               fgt2 = fgt2_toSum / totals$pop_total,
+               quant = threshold)
+}
+
+# foo <- fgt(suff_long, 65159.75, "pop_group")
+bar <- fgt(suff_long, 135366.5, "inc_dec") # 50th percentile
+
+bar <- do.call(rbind, lapply(c(500, 42000, 93000, 215000, 491000, 1e6), 
+                             fgt, df = suff_long, grouping_var = "inc_dec"))
+
+names(bar)[2] <- "pop_group"
+bar$pop_group <- factor(bar$pop_group)
+
+foo <- fgt(sufficiency, 100000)
+
+demogsToPlot <- c("pop_asiapacific", "pop_black", "pop_hispanic", "pop_white", "pop_poverty",
+                  "pop_total")
+
+
+ggplot() + 
+  geom_point(data = filter(fg, pop_group %in% demogsToPlot), aes(y = fgt2, x = date, color = pop_group)) +
+  geom_line(data = filter(fg, pop_group %in% demogsToPlot), aes(y = fgt2, x = date, color = pop_group, group = pop_group)) + 
+  scale_color_brewer(palette = "Dark2") + 
+  xlab(NULL) + 
+  theme_bw()
+
+# Facet on the threshold
+
+ggplot() + 
+  geom_point(data = bar, aes(y = fgt2, x = date, color = pop_group)) +
+  geom_line(data = bar, aes(y = fgt2, x = date, color = pop_group, group = pop_group)) + 
+  scale_color_viridis_d() + 
+  # facet_wrap(~ quant) + 
+  xlab(NULL) + 
+  theme_bw()
+

@@ -2,6 +2,7 @@ library(sf)
 library(tigris)
 library(tidycensus)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(lehdr)
 
@@ -71,6 +72,12 @@ demog_vars <- c(
   "B23025_001", # working-age population employed and not
   "B25046_001") # aggregate vehicles available
 
+hl_vars <- 
+  c("B03002_003", # white alone
+    "B03002_004", # black alone
+    "B03002_006", # Asian
+    "B03002_012") # Hispanic or Latino
+
 demographics <- 
   get_acs(geography = "block group",
           variables = demog_vars,
@@ -121,6 +128,28 @@ hex_jobs <-
   mutate(hex_jobs = C000 * new_area / orig_area) %>%
   group_by(hexid) %>%
   summarize(jobs = sum(hex_jobs))
+
+# Regional maps ----------------------------------------------------------------
+demographics_toPlot <- 
+  get_acs(geography = "block group",
+          variables = hl_vars,
+          summary_var = "B03002_001",
+          state = c("DC", "MD", "VA", "WV"),
+          geometry = TRUE,
+          year = 2018) %>%
+  # st_transform("EPSG:2248") %>%
+  mutate(orig_area = units::drop_units(st_area(.)),
+         pop_share = estimate / summary_est)
+
+ggplot() + 
+  geom_sf(data = demographics_toPlot, aes(color = pop_share, fill = pop_share)) + 
+  geom_sf(data = wmata_states, col = "white", fill = NA) + 
+  facet_wrap(~ variable) + 
+  coord_sf(xlim = c(-77.5, -76.8), ylim = c(38.75, 39.2), expand = FALSE) + 
+  scale_fill_viridis_c() + 
+  scale_color_viridis_c() +
+  ggthemes::theme_map()
+  
 
 # "Transit supply" -------------------------------------------------------------
 

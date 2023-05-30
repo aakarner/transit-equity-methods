@@ -36,7 +36,7 @@ dc_scores[, .(w = weighted.mean(x= score, w=pop_white, na.rm=T),
 # find deciles
 deciles  <- Hmisc::wtd.quantile(dc_scores$med_inc, weights=dc_scores$pop_total, 
                                 probs=c( seq(0 , 1 , 0.1) ), 
-                                type=c('quantile','(i-1)/(n-1)','i/(n+1)','i/n'), 
+                                type=c('quantile'), 
                                 normwt=FALSE, na.rm=T)
 
 dc_scores[, deciles := findInterval(med_inc , deciles[ -length(deciles) ] ) ]
