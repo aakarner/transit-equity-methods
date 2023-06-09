@@ -99,6 +99,46 @@ range(dc_scores$std_demand2, na.rm = TRUE)
 
 summarize(dc_scores, avg_score = mean(std_score), sd_score1 = sd(std_score))
 
+# Gaps analysis standardizing by the mean and sd that obtain in feb 2020
+
+dc_scores %>%
+  st_drop_geometry() %>%
+  filter(GEOID %in% urban_def$bg_id) %>%
+  group_by(date) %>%
+  summarize(mean_score = mean(score),
+            sd_score = sd(score))
+
+dc_scores_alt <-
+  dc_scores %>%
+  filter(GEOID %in% urban_def$bg_id) %>%
+  group_by(date) %>%
+  mutate(std_score = scale(score, center = 246403, scale = 244616),
+         std_demand1 = scale(pop_poverty),
+         std_demand2 = 
+           (scale(hhld_nocar) + scale(hhld_single_mother) + scale(pop_poverty)) / 3,
+         gap1 = std_demand1 - std_score,
+         gap2 = std_demand2 - std_score, # Large +ve means a gap, large -ve means oversupply
+         categ = ifelse(std_demand1 > 0 & std_score > 0, "high-high",
+                 ifelse(std_demand1 > 0 & std_score < 0, "high-low",
+                 ifelse(std_demand1 < 0 & std_score < 0, "low-low",
+                 ifelse(std_demand1 < 0 & std_score > 0, "low-high", NA)))),
+         below_med = ifelse(score < 138169, 1, 0),
+         `desert status` = ifelse(gap1 > 0, "desert", "not")
+         ) %>%
+  st_transform("EPSG:2248")
+
+# How many people are in deserts before and after the covid cut using the
+# mean and sd from t1? 
+dc_scores_alt %>% 
+  st_drop_geometry() %>% 
+  ungroup() %>% 
+  group_by(date, `desert status`) %>% 
+  summarize(pop_total = sum(pop_total, na.rm = TRUE),
+            pov_pop = sum(pop_poverty, na.rm = TRUE),
+            count = n()) %>%
+  arrange(date, `desert status`)
+
+
 # Demographic map --------------------------------------------------------------
 dc_to_map <- 
   dc_scores %>%
