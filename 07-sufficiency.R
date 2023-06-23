@@ -183,15 +183,20 @@ ggplot() +
 
 # Is the "gap" being driven by a high demand or low supply? --------------------
 ggplot() + 
+  geom_hline(yintercept = 0, color = grey(0.8)) + 
+  geom_vline(xintercept = 0, color = grey(0.8)) +
   geom_point(data = filter(dc_scores_final, !is.na(categ)),
-             aes(x = gap1, y = std_score, color = categ)) + 
+             aes(x = gap1, y = std_score, color = categ), alpha = 0.9) + 
   scale_color_viridis_d() + 
   xlab("\"gap\" (demand - supply)") + 
   ylab("standardized access score") + 
   facet_wrap(~ date) + 
   guides(color = guide_legend(title = "demand-supply")) +
   theme_bw() + 
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom",
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())
+  
   
   # theme(legend.position = c(0.9, 0.8),
   #       legend.background = element_blank(),
