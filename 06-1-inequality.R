@@ -332,7 +332,7 @@ setDT(df)
 
 
 # select colums and reshape to long format
-df_inc <- df[, .(GEOID, score, med_inc, deciles, dec_inc, scenario, pop_total, difference)]
+df_inc <- df[, .(GEOID, score, med_inc, deciles, dec_inc, scenario, date, pop_total, difference)]
 df_inc <- df_inc[!is.na(dec_inc)]
 table(df_inc$dec_inc, useNA = "always")
 
@@ -437,6 +437,26 @@ fig_lorenz_inc
 
 ## 3.3 gini --------------------------------------------------------------
 
+acs <- copy(df_inc)[, .(GEOID, score, scenario )]
+setnames(acs, 'GEOID', 'id')
+
+pop <- copy(df_inc)[, .(GEOID, med_inc, deciles, pop_total )]
+setnames(pop, 'GEOID', 'id')
+
+gini_all <- accessibility::gini_index(accessibility_data = acs,
+                          sociodemographic_data = pop, 
+                          opportunity = 'score',
+                          population = 'pop_total', 
+                          group_by = 'scenario')
+
+
+gini_inc <- accessibility::gini_index(accessibility_data = aa,
+                                      sociodemographic_data = pp, 
+                                      opportunity = 'score',
+                                      population = 'pop_total', 
+                                      group_by = c('deciles','scenario')
+                                      )
+
 gini_all <- df_inc[, .(gini = gini(x=score, w=pop_total),
                         dec_inc = 'All'), by = scenario]
 
@@ -445,12 +465,16 @@ gini_inc <- df_inc[, .(gini = gini(x=score, w=pop_total)),
 
 setcolorder(gini_all, names(gini_inc))
 
+gini_all$fact <- 'all'
+gini_inc$fact <- 'groups'
+
 gini_df <- rbind(gini_all, gini_inc)
 
 fig_gini <- ggplot() + 
   geom_col(data=gini_df, 
            aes(x=dec_inc, y = gini , fill=scenario), position = "dodge") +
   labs(x='Group', y = 'Gini coef.', fill = "Scenario") +
+  # facet_wrap(~fact, scales = 'free_x') +
   scale_x_discrete(limits=rev) +
   theme_minimal() 
 
@@ -469,6 +493,19 @@ ggsave(fig_lorenz_gini_inc,
 
 
 ## 3.4 palma ratio --------------------------------------------------------------
+acs <- copy(df_inc)[, .(GEOID, score, scenario )]
+setnames(acs, 'GEOID', 'id')
+
+pop <- copy(df_inc)[, .(GEOID, med_inc, deciles, pop_total )]
+setnames(pop, 'GEOID', 'id')
+
+df_palma_inc <- accessibility::palma_ratio(accessibility_data = acs,
+                                      sociodemographic_data = pop, 
+                                      opportunity = 'score',
+                                      population = 'pop_total',
+                                      income = 'med_inc',
+                                      group_by = 'scenario')
+
 
 # calculates the wealthiest's average accessibility in both scenarios
 wealthiest_access <- df_inc[
@@ -565,9 +602,10 @@ fig_theil_total2 <- ggplot() +
                     geom_col(data = theil_all_btw,
                              position = "dodge",
                              aes(x=component, y = value , fill=scenario)) +
-                    labs(x=' ', y = 'Total inequality', fill = "group") +
+                    labs(x='Inequality component', y = 'Theil inequality', fill = "group") +
                     theme_minimal() + 
-                    theme(legend.position="none") 
+                    theme(legend.position="top",
+                          legend.title=element_blank()) 
 
 fig_theil_total <- ggplot() + 
                     geom_col(data = subset(theil_all_btw, component == 'total'),
@@ -621,8 +659,24 @@ ggsave(fig_theil_total2,
 
 ## 3.6 concentration index --------------------------------------------------------------
 
-conc_index <- df_inc[, concentr(x= score, med_inc, w= pop_total), by =scenario]
 
+a <- df_inc[scenario=='Before', rineq::ci( ineqvar = med_inc, 
+                                      outcome = score,
+                                      weights=  pop_total, 
+                                       method='direct',
+                                      type= 'CIc') # 'CI' 'CIg'
+]
+
+
+b <- df_inc[scenario=='After', rineq::ci( ineqvar = med_inc, 
+                                     outcome = score,
+                                     weights=  pop_total, 
+                                      method='direct',
+                                     type= 'CIc') # 'CI' 'CIg' 'CIc'
+]
+
+
+conc_index <- df_inc[, concentr(x= score, y=deciles, w= pop_total), by =scenario]
 
 # decompose concentration index
 temp_before <- subset(df_inc, scenario == 'Before')

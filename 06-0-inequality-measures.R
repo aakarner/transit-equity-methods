@@ -132,8 +132,8 @@ concentr = function(x, y, w = NULL){
   y_o = x_c[o]
   w_o = w_c[o]
   
-  x_cum = c(0, cumsum(x_o * w_o)/sum(x_o * w_o))
-  w_cum = c(0, cumsum(w_o)/sum(w_o))
+  x_cum = c(0, cumsum(as.numeric(x_o * w_o)/sum(x_o * w_o)))
+  w_cum = c(0, cumsum(as.numeric(w_o)/sum(w_o)))
   
   b = x_cum[-length(x_cum)]
   B = x_cum[-1]
