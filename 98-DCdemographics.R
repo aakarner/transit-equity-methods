@@ -42,7 +42,7 @@ wmata_area <-
 wmata_states <- 
   states() %>% 
   filter(
-    NAME %in% c("Virginia", "Maryland", "District of Columbia"))
+    NAME %in% c("Virginia", "Maryland", "District of Columbia", "West Virginia"))
 
 wmata_lines <- st_read("data/Metro_Lines_Regional.geojson")
 
@@ -142,7 +142,7 @@ scale_params <- tibble::tibble(
     width_hint = 0.25,
     style = c("bar"),
     location = c("br"),
-    unit_category = c("imperial"),
+    unit_category = c("metric"),
     text_col = c("black"),
     line_col = c("black")
   )
@@ -152,27 +152,45 @@ na_params <- tibble::tibble(
 )
 
 plot_demogs <- st_transform(trct_demogs, "EPSG:2248")
+plot_demogs <- st_transform(trct_demogs, "EPSG:4326")
+
+st_bbox(plot_demogs)
+#      xmin      ymin      xmax      ymax 
+# -77.28329  38.72198 -76.78527  39.12203
+#      xmin      ymin      xmax      ymax 
+# 1231681.7  384375.2 1373382.9  530067.7 
 
 ggplot() + 
   geom_sf(data = filter(plot_demogs, !is.na(brks)), aes(fill = brks), color = NA) + 
-  geom_sf(data = wmata_states_clip, color = grey(0.5), fill = NA) +
+  # geom_sf(data = wmata_states_clip, color = grey(0.5), fill = NA) +
   facet_wrap(~ variable, as.table = TRUE) +
-  # xlab(NULL) + ylab(NULL) + 
-  # geom_sf(data = wmata_lines, color = "white") + 
-  # # geom_sf(data = cty_shapes_b5, aes(geometry = geometry), fill = NA, 
-  #         color = grey(0.5), inherit.aes = FALSE) + 
-  # coord_sf(xlim = c(-84.85071, -83.7991), ylim = c(34.18629, 33.35246)) +
+  geom_sf(data = wmata_states, fill = NA, col = "black") + 
+  geom_sf(data = wmata_lines, color = "white") + 
+  # coord_sf(xlim = c(-76.78527, -77.28329), ylim = c(39.12203, 38.72198)) +
+  coord_sf(xlim = c(1373382.9, 1231681.7), ylim = c(530067.7, 384375.2)) +
   scale_fill_viridis_d(name = NULL, na.value = "grey75", direction = -1) +
-  guides(fill = guide_legend("population share (%)", nrow = 1)) +
-  theme_bw(base_size = 12) + 
-  theme(panel.background = element_rect(fill = "white", color = "grey50"), 
+  guides(fill = guide_legend("population share (%)")) +
+  # theme_bw(base_size = 10) + 
+  theme(panel.background = element_rect(fill = grey(0.9), color = "grey50"), 
         strip.background = element_rect(colour = "black", fill = "grey75"),
-        strip.text.x = element_text(color = "black", face = "bold", size = 12),
+        strip.text.x = element_text(color = "black", face = "bold", size = 10),
         panel.grid.major = element_line(color = NA),
         axis.text = element_blank(), axis.ticks = element_blank(), 
         legend.background = element_blank(),
-        legend.position = "bottom")
+        legend.position = "right",
+        legend.direction = "vertical") +
+  ggspatial::annotation_scale(
+      aes(width_hint = width_hint,
+          style = style,
+          location = location,
+          unit_category = unit_category,
+          text_col = text_col,
+          line_col = line_col),
+      data = scale_params,
+      plot_unit = "ft") +
+  ggspatial::annotation_north_arrow(data = na_params, style = north_arrow_minimal, location = "tr")
 
+# ggsave("output/DC_demographics_wScale.png")
 ggsave("output/DC_demographics.png")
 
 # This scalebar and north arrow changes the order of the facets
@@ -189,14 +207,17 @@ ggsave("output/DC_demographics.png")
 #       plot_unit = "ft") + 
 #   ggspatial::annotation_north_arrow(data = na_params)
 
+# Solution is to generate the scalebar and north arrow in a separate image
+# and then merge offline using Gimp
+
 # Create inset map -------------------------------------------------------------
 
 st_centroid(wmata_states)
 
 cty_coords <- data.frame(
-  X = c(-76.2, -78.6756, -78.2),
-  Y = c(38.94624, 37.51784, 38.95),
-  name_ = c("Maryland", "Virginia", "District of Columbia"))
+  X = c(-76.3, -78, -76.45, -78.75),
+  Y = c(39.4, 38.6, 38.6, 39.25),
+  name_ = c("Maryland", "Virginia", "District of Columbia", "West Virginia"))
 
 ggplot() + 
   geom_sf(data = wmata_states) + 
@@ -204,12 +225,13 @@ ggplot() +
   geom_label(
     data = cty_coords, 
     aes(x = X, y = Y, label = name_),
-    size = 6,
+    size = 2,
     fontface = "italic") + 
-  # coord_sf(xlim = c(-78,-76), ylim = c(38.5, 39.3)) + 
-  ggthemes::theme_map(base_size = 15) 
-  # theme(panel.grid.major = element_line(color = NA),
-  #       panel.border = element_blank(),
-  #       axis.text = element_blank(), axis.ticks = element_blank())
+  coord_sf(xlim = c(-79,-76), ylim = c(38, 40)) +
+  ggthemes::theme_map()  
+  
+# theme(panel.grid.major = element_line(color = NA),
+#         panel.border = element_blank(),
+#         axis.text = element_blank(), axis.ticks = element_blank())
 
 ggsave("output/DCinset.png", width = 3, height = 3.5)
