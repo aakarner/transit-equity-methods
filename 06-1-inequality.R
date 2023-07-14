@@ -1,3 +1,4 @@
+library(accessibility)
 library(sf)
 library(data.table)
 library(dplyr)
@@ -399,26 +400,26 @@ get_lorenz_df <- function(x, n){
   return(temp_df)
 }
 
-lorenz_inc <- df_inc[, get_lorenz_df(x = score, n = pop_total), by = .(dec_inc, scenario)]
+# lorenz_inc <- df_inc[, get_lorenz_df(x = score, n = pop_total), by = .(dec_inc, scenario)]
 lorenz_total <- df_inc[, get_lorenz_df(x = score, n = pop_total),by = .(scenario)]
 lorenz_total$dec_inc <- 'All'
 
 # rbind
 setcolorder(lorenz_total, names(lorenz_inc))
-lorenz_df <- rbind(lorenz_total, lorenz_inc)
+lorenz_df <- rbind(lorenz_total) # , lorenz_inc
 
-fig_lorenz_inc <- ggplot(data=lorenz_inc) +
-  geom_line(aes(x=p, y=L, color=dec_inc)) +
+fig_lorenz_inc <- 
+  ggplot(data= lorenz_df ) + # lorenz_inc
+  geom_line(aes(x=p, y=L, color=scenario)) + # color=dec_inc
   scale_x_continuous(name="Cumulative share of population\nranked by accessibility level",
                      expand = c(0, 0), labels = c(0, .25, .5, .75, 1)) + 
   scale_y_continuous(name="Cumulative share of Access",
                      expand = c(0, 0)) +
-  labs(color = 'Group') +
-  scale_color_brewer(name ='Incomde\ndeciles', palette = 'BrBG', direction = -1) + 
-  facet_wrap(~ scenario, nrow = 1) +
+  labs(color = '') + # Group
+#  scale_color_brewer(name ='Incomde\ndeciles', palette = 'BrBG', direction = -1) + 
+#  facet_wrap(~ scenario, nrow = 1) +
   geom_abline(linetype = "dashed") +
   coord_fixed()  +
-#  theme_classic() +
   theme_minimal() +
   theme(strip.background = element_rect(fill=NA, color=NA)) 
 
@@ -437,10 +438,12 @@ fig_lorenz_inc
 
 ## 3.3 gini --------------------------------------------------------------
 
-acs <- copy(df_inc)[, .(GEOID, score, scenario )]
+acs <- copy(df_inc)[, .(GEOID, score, scenario, deciles)]
+acs <- unique(acs)
 setnames(acs, 'GEOID', 'id')
 
 pop <- copy(df_inc)[, .(GEOID, med_inc, deciles, pop_total )]
+pop <- unique(pop)
 setnames(pop, 'GEOID', 'id')
 
 gini_all <- accessibility::gini_index(accessibility_data = acs,
@@ -450,43 +453,61 @@ gini_all <- accessibility::gini_index(accessibility_data = acs,
                           group_by = 'scenario')
 
 
-gini_inc <- accessibility::gini_index(accessibility_data = aa,
-                                      sociodemographic_data = pp, 
+gini_inc <- accessibility::gini_index(accessibility_data = acs,
+                                      sociodemographic_data = pop, 
                                       opportunity = 'score',
                                       population = 'pop_total', 
                                       group_by = c('deciles','scenario')
                                       )
 
-gini_all <- df_inc[, .(gini = gini(x=score, w=pop_total),
-                        dec_inc = 'All'), by = scenario]
+gini_inc[, deciles := factor(deciles,
+                             levels = 10:1,
+                             labels = c('D10\nWealthiest', 9:2, 'D1\nPoorest'))]
 
-gini_inc <- df_inc[, .(gini = gini(x=score, w=pop_total)), 
-                      by = .(dec_inc, scenario)]
+# gini_all$deciles <- 'All'
+# setcolorder(gini_all, names(gini_inc))
+# 
+# gini_all$fact <- 'all'
+# gini_inc$fact <- 'groups'
+# 
+# gini_df <- rbind(gini_all, gini_inc)
 
-setcolorder(gini_all, names(gini_inc))
-
-gini_all$fact <- 'all'
-gini_inc$fact <- 'groups'
-
-gini_df <- rbind(gini_all, gini_inc)
-
-fig_gini <- ggplot() + 
-  geom_col(data=gini_df, 
-           aes(x=dec_inc, y = gini , fill=scenario), position = "dodge") +
-  labs(x='Group', y = 'Gini coef.', fill = "Scenario") +
-  # facet_wrap(~fact, scales = 'free_x') +
-  scale_x_discrete(limits=rev) +
-  theme_minimal() 
+fig_gini_all <- ggplot() + 
+                  geom_col(data = gini_all, 
+                           aes(x = scenario, 
+                               y = gini_index, 
+                               fill=scenario), 
+                           position = "dodge") +
+                  labs(x='', y = 'Gini coef.', fill = "") +
+                  ylim(0, .65) + 
+                  # scale_x_discrete(limits=rev) +
+                  theme_minimal() +
+                  theme(axis.title.x=element_blank()) +
+                  theme(legend.position="none") 
 
 
+fig_gini_dec <- ggplot() + 
+  geom_col(data = gini_inc, 
+           aes(x = deciles, 
+               y = gini_index, 
+               fill=scenario), 
+           position = "dodge") +
+  labs(x='', y = 'Gini coef.', fill = "") +
+  ylim(0, .65) + 
+  # scale_x_discrete(limits=rev) +
+  theme_minimal() +
+  theme(axis.title.x=element_blank())
 
-fig_lorenz_gini_inc <- (fig_lorenz_inc / fig_gini ) + plot_annotation(tag_levels = 'A')
+
+
+fig_lorenz_gini_inc <- ((fig_lorenz_inc + fig_gini_all) / fig_gini_dec ) + 
+                        plot_annotation(tag_levels = 'A')
 fig_lorenz_gini_inc
 
 
 
 ggsave(fig_lorenz_gini_inc, 
-       file = './figures/fig_lorenz_gini_inc.png', 
+       file = './figures/fig_lorenz_gini_inc2.png', 
        width = 18, height = 16, dpi = 200, units = 'cm')
 
 
@@ -506,41 +527,16 @@ df_palma_inc <- accessibility::palma_ratio(accessibility_data = acs,
                                       income = 'med_inc',
                                       group_by = 'scenario')
 
-
-# calculates the wealthiest's average accessibility in both scenarios
-wealthiest_access <- df_inc[
-  dec_inc == 'D10\nWealthiest',
-  .(access = weighted.mean(score, w = as.numeric(pop_total ))),
-  by = scenario
-]
-
-# calculates the poorest's average accessibility in both scenarios
-poorest_access <- df_inc[
-  dec_inc %in% c('D1\nPoorest', 2:4),
-  .(access = weighted.mean(score, w = as.numeric(pop_total ))),
-  by = scenario
-]
-
-# combines the wealthiest's and the poorest's accessibility
-df_palma_inc <- merge(
-  wealthiest_access,
-  poorest_access,
-  by = "scenario",
-  suffixes = c("_wealthiest", "_poorest")
-)
-
-# calculates the palma ratio
-df_palma_inc[, palma := access_wealthiest / access_poorest]
-
-
-fig_palma_inc <- ggplot(data = df_palma_inc, aes(x=scenario, y = palma)) + 
+# plot
+fig_palma_inc <- 
+  ggplot(data = df_palma_inc, aes(x=scenario, y = palma_ratio)) + 
   geom_col(aes(fill=scenario)) +
-  geom_text( aes(label = round(palma, digits = 2)),
+  geom_text( aes(label = round(palma_ratio, digits = 2)),
              vjust = 1.5,
              color = "white",
-             size = 10
+             size = 5
   ) +
-  labs(x='Scenario', y = 'Pala ratio\nWealthiest 10% / Poorest 40%', fill = "Scenario") +
+  labs(x='Scenario', y = 'Pala ratio', fill = "") +
   theme_minimal() +
   theme(legend.position="none")
 
@@ -554,12 +550,24 @@ ggsave(fig_palma_inc,
 
 
 ## 3.5 theil --------------------------------------------------------------
+acs <- copy(df_inc)[, .(GEOID, score, scenario, deciles)]
+acs <- unique(acs)
+setnames(acs, 'GEOID', 'id')
+
+pop <- copy(df_inc)[, .(GEOID, med_inc, scenario, deciles, pop_total )]
+pop <- unique(pop)
+setnames(pop, 'GEOID', 'id')
+
+
+accessibility::theil_index(accessibility_data = acs,
+                           sociodemographic_data = pop,
+                           opportunity = 'score',
+                           population = 'pop_total',
+                           socioeconomic_groups = 'deciles'),
+                           group_by = 'scenario')
 
 # total inequality
 theil_dec_inc_total <- df_inc[, theil_t(x=score, w=pop_total), by = scenario]
-
-    # df_inc[, .(theil_t = theil_t(x=score, w=pop_total),
-    #            dec_inc = 'All'), by = scenario]
 
 # inequality components
 temp_before <- subset(df_inc, scenario == 'Before')
@@ -568,6 +576,7 @@ temp_after <- subset(df_inc, scenario == 'After')
 theil_dec_inc_comp_before <- decomp_theil_t(x = temp_before$score, 
                                          groups = temp_before$dec_inc, 
                                          w = temp_before$pop_total)
+
 
 theil_dec_inc_comp_after <- decomp_theil_t(x = temp_after$score, 
                                         groups = temp_after$dec_inc, 
@@ -608,7 +617,7 @@ fig_theil_total2 <- ggplot() +
                           legend.title=element_blank()) 
 
 fig_theil_total <- ggplot() + 
-                    geom_col(data = subset(theil_all_btw, component == 'total'),
+                    geom_col(data = subset(theil_all_btw, component == 'Total'),
                              aes(x=scenario, y = value , fill=scenario)) +
                     labs(x=' ', y = 'Total inequality', fill = "group") +
                     theme_minimal() + 
@@ -616,7 +625,7 @@ fig_theil_total <- ggplot() +
 
 
 fig_theil_btwn <- ggplot() + 
-                  geom_col(data = subset(theil_all_btw, component == 'between'),
+                  geom_col(data = subset(theil_all_btw, component == 'Between'),
                            aes(x=scenario, y = value , fill=scenario)) +
                   labs(x=' ', y = 'Between-group inequality', fill = "group") +
                   theme_minimal() + 
@@ -659,59 +668,109 @@ ggsave(fig_theil_total2,
 
 ## 3.6 concentration index --------------------------------------------------------------
 
+acs <- copy(df_inc)[, .(GEOID, score, scenario)]
+acs <- unique(acs)
+setnames(acs, 'GEOID', 'id')
 
-a <- df_inc[scenario=='Before', rineq::ci( ineqvar = med_inc, 
-                                      outcome = score,
-                                      weights=  pop_total, 
-                                       method='direct',
-                                      type= 'CIc') # 'CI' 'CIg'
-]
+pop <- copy(df_inc)[, .(GEOID, med_inc, deciles, pop_total )]
+pop <- unique(pop)
+setnames(pop, 'GEOID', 'id')
+
+ci_all <- accessibility::concentration_index(accessibility_data = acs,
+                                      sociodemographic_data = pop, 
+                                      opportunity = 'score',
+                                      population = 'pop_total', 
+                                      income = 'med_inc',
+                                      type = 'corrected',
+                                      group_by = 'scenario')
+
+ci_all_dec <- accessibility::concentration_index(accessibility_data = acs,
+                                                 sociodemographic_data = pop, 
+                                                 opportunity = 'score',
+                                                 population = 'pop_total', 
+                                                 income = 'deciles',
+                                                 type = 'corrected',
+                                                 group_by = 'scenario')
+
+# plot
+fig_ci <- 
+  ggplot(data = ci_all, aes(x=scenario, y = concentration_index)) + 
+  geom_col(aes(fill=scenario)) +
+  geom_text( aes(label = round(concentration_index, digits = 2)),
+             vjust = 1.5,
+             color = "white",
+             size = 5
+  ) +
+  labs(x='Scenario', y = 'Concentration index', fill = "") +
+  theme_minimal() +
+  theme(legend.position="none")
 
 
-b <- df_inc[scenario=='After', rineq::ci( ineqvar = med_inc, 
-                                     outcome = score,
-                                     weights=  pop_total, 
-                                      method='direct',
-                                     type= 'CIc') # 'CI' 'CIg' 'CIc'
-]
+fig_ci
+
+ggsave(fig_ci, 
+       file = './figures/fig_conc_index.png', 
+       width = 15, height = 10, dpi = 200, units = 'cm')
 
 
-conc_index <- df_inc[, concentr(x= score, y=deciles, w= pop_total), by =scenario]
+fig_ci_inc <- fig_conc_curve + fig_ci + plot_annotation(tag_levels = 'A')
+fig_ci_inc
 
-# decompose concentration index
-temp_before <- subset(df_inc, scenario == 'Before')
-temp_after <- subset(df_inc, scenario == 'After')
+ggsave(fig_ci_inc, 
+       file = './figures/fig_conc_index.png', 
+       width = 20, height = 8, dpi = 200, units = 'cm')
 
-decomp_concentr(x = temp_before$score, 
-                y = temp_before$med_inc,
-                nonOverlaping_groups = temp_before$deciles, 
-                w= temp_before$pop_total)
 
-decomp_concentr(x = temp_after$score, 
-                y = temp_after$med_inc,
-                nonOverlaping_groups = temp_after$deciles, 
-                w= temp_after$pop_total)
+# df_inc[scenario=='Before', # 'After'
+#             rineq::ci( ineqvar = med_inc,
+#                        outcome = score,
+#                        weights=  pop_total, 
+#                        method='direct',
+#                        type= 'CI') # 'CI' 'CIg'
+#             ]
+# conc_index <- df_inc[, concentr(x= score, y=med_inc, w= pop_total), by =scenario]
+
+# # decompose concentration index
+# temp_before <- subset(df_inc, scenario == 'Before')
+# temp_after <- subset(df_inc, scenario == 'After')
+# 
+# decomp_concentr(x = temp_before$score, 
+#                 y = temp_before$med_inc,
+#                 nonOverlaping_groups = temp_before$deciles, 
+#                 w= temp_before$pop_total)
+# 
+# decomp_concentr(x = temp_after$score, 
+#                 y = temp_after$med_inc,
+#                 nonOverlaping_groups = temp_after$deciles, 
+#                 w= temp_after$pop_total)
 
 
 ##### 3.6.1 concentration curve ------------------------
 temp_after <- temp_after[order(med_inc, deciles, score)]
 temp_before <- temp_before[order(med_inc, deciles, score)]
 
-conc_curve_before <- temp_before[, .(x = cumsum(pop_total)/max(cumsum(pop_total)),
-                                     y = cumsum(score*pop_total)/max(cumsum(score*pop_total)),
-                                     scenario = 'Before'
-                                     )]
+get_conc_curve_df <- function(dt, income, population, access, group_by){
+  
+  dt <- dt[order(get(group_by), get(income), get(population), get(access))]
 
-conc_curve_after <- temp_after[, .(x = cumsum(pop_total)/max(cumsum(pop_total)),
-                                   y = cumsum(score*pop_total)/max(cumsum(score*pop_total)),
-                                   scenario = 'After'
-                                   )]
+  temp_df <- dt[, .(x = cumsum(get(population))/max(cumsum(get(population))),
+                    y = cumsum(get(access)*get(population))/max(cumsum(get(access)*get(population)))
+                    ),
+                by = group_by]
+  return(temp_df)
+  }
 
-df_conc_curve <- rbind(conc_curve_before, conc_curve_after)
+
+df_conc_curve <- get_conc_curve_df(df_inc, 
+                  income = 'med_inc',
+                  population = 'pop_total',
+                  access = 'score',
+                  group_by = 'scenario')
+
 
 fig_conc_curve <- ggplot(data=df_conc_curve) +
                     geom_line(aes(x=x, y=y, color = scenario)) +
-                    scale_x_continuous(name="Cumulative share of Population\nsorted by income",
+                    scale_x_continuous(name="Cumulative share of population\nsorted by income",
                                        expand = c(0, 0), labels = scales::percent) + 
                     scale_y_continuous(name="Cumulative share of Access",
                                        expand = c(0, 0), labels = scales::percent) +
