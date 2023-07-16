@@ -343,22 +343,27 @@ table(df_inc$dec_inc, useNA = "always")
 ## 3.1 boxplot --------------------------------------------------------------
 
 ### level
-box_level <- ggplot(data = df_inc[pop_total > 0]) +
+box_level <- 
+  ggplot(data = df_inc[pop_total > 0]) +
   geom_boxplot(
     aes(
       x = dec_inc,
       y = score,
-      color = dec_inc,
+      fill = dec_inc,
       weight = pop_total,
       group = dec_inc
     ),
+    color = grey(0.4),
+    outlier.shape = 21,
     show.legend = FALSE
   ) +
   facet_wrap(~ scenario, nrow = 1) +
   scale_x_discrete(limits=rev) +
-  scale_colour_brewer(palette = "BrBG") +
-  labs(x = "Income decile", y = "Accessibility score") +
-  theme_minimal()
+  # scale_colour_brewer(palette = "BrBG") +
+  scale_fill_viridis_d(option = "H") +
+  labs(x = "income decile", y = "accessibility (jobs reachable in\n45 minutes on public transit)") +
+  theme_minimal() + 
+  theme(panel.spacing.x = unit(2, "lines"))
 
 
 
@@ -368,15 +373,19 @@ box_impact <- ggplot(data = df_inc[pop_total > 0]) +
     aes(
       x = dec_inc,
       y = difference,
-      color = dec_inc,
+      # color = dec_inc,
+      fill = dec_inc,
       weight = pop_total,
       group = dec_inc
     ),
+    color = grey(0.4),
+    outlier.shape = 21,
     show.legend = FALSE
   ) +
   scale_x_discrete(limits=rev) +
-  scale_colour_brewer(palette = "BrBG") +
-  labs(x = "Income decile", y = "Accessibility score") +
+  # scale_colour_brewer(palette = "BrBG") +
+  scale_fill_viridis_d(option = "H") +
+  labs(x = "income decile", y = "accessibility (jobs reachable in\n45 minutes on public transit)") +
   theme_minimal()
 
 
