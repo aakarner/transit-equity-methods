@@ -258,7 +258,8 @@ ggplot() +
   facet_wrap(~ date) + 
   # coord_sf(xlim = c(-77.3, -76.8), ylim = c(38.7, 39.15), expand = FALSE) +
   coord_sf(xlim = c(1226715.965140128, 1369011.5944263502), ylim = c(376465.63918774325, 540355.250319933)) + 
-  scale_fill_manual(values = c("#440154FF", "#FDE725FF")) +
+  # scale_fill_manual(values = c("#440154FF", "#FDE725FF")) +
+  scale_fill_manual(values = c("#f9b57c", "#7c93f9")) +
   ggthemes::theme_map() + 
   theme(panel.background = element_rect(fill = grey(0.9))) + 
   annotation_scale(
@@ -386,7 +387,32 @@ fgt <- function(df, threshold, grouping_var) {
 }
 
 # foo <- fgt(suff_long, 65159.75, "pop_group")
-bar <- fgt(suff_long, 135366.5, "inc_dec") # 50th percentile
+bar_long <- 
+  fgt(suff_long, 135366.5, "inc_dec") %>% # 50th percentile 
+  pivot_longer(cols = c("fgt0", "fgt1", "fgt2")) %>%
+  mutate(decile = `eval(parse(text = grouping_var))`) %>%
+  filter(!is.na(value)) %>%
+  filter(!is.na(decile))
+
+bar_wide <- 
+  fgt(suff_long, 135366.5, "inc_dec") %>% # 50th percentile 
+  # pivot_longer(cols = c("fgt0", "fgt1", "fgt2")) %>%
+  mutate(decile = `eval(parse(text = grouping_var))`)
+
+
+ggplot() + 
+  geom_col(data = bar, aes(x = as.factor(decile), y = value, fill = date), position = "dodge") +
+  facet_wrap(~ name) + 
+  scale_fill_manual(values = c("#f9b57c", "#7c93f9")) +
+  theme_minimal()
+
+
+ggplot() + 
+  geom_point(data = bar, aes(y = as.factor(decile), x = value, color = date)) +
+  facet_wrap(~ name) + 
+  scale_color_manual(values = c("#f9b57c", "#7c93f9")) +
+  theme_minimal()
+  
 
 bar <- do.call(rbind, lapply(c(500, 42000, 93000, 215000, 491000, 1e6), 
                              fgt, df = suff_long, grouping_var = "inc_dec"))

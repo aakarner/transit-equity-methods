@@ -360,7 +360,7 @@ box_level <-
   facet_wrap(~ scenario, nrow = 1) +
   scale_x_discrete(limits=rev) +
   # scale_colour_brewer(palette = "BrBG") +
-  scale_fill_viridis_d(option = "H") +
+  scale_fill_viridis_d(option = "D") +
   labs(x = "income decile", y = "accessibility (jobs reachable in\n45 minutes on public transit)") +
   theme_minimal() + 
   theme(panel.spacing.x = unit(2, "lines"))
@@ -384,7 +384,7 @@ box_impact <- ggplot(data = df_inc[pop_total > 0]) +
   ) +
   scale_x_discrete(limits=rev) +
   # scale_colour_brewer(palette = "BrBG") +
-  scale_fill_viridis_d(option = "H") +
+  scale_fill_viridis_d(option = "D") +
   labs(x = "income decile", y = "accessibility (jobs reachable in\n45 minutes on public transit)") +
   theme_minimal()
 
@@ -420,13 +420,14 @@ lorenz_df <- rbind(lorenz_total) # , lorenz_inc
 fig_lorenz_inc <- 
   ggplot(data= lorenz_df ) + # lorenz_inc
   geom_line(aes(x=p, y=L, color=scenario)) + # color=dec_inc
-  scale_x_continuous(name="Cumulative share of population\nranked by accessibility level",
+  scale_x_continuous(name="cumulative share of population\nranked by accessibility level",
                      expand = c(0, 0), labels = c(0, .25, .5, .75, 1)) + 
-  scale_y_continuous(name="Cumulative share of Access",
+  scale_y_continuous(name="cumulative share of accessibility",
                      expand = c(0, 0)) +
   labs(color = '') + # Group
 #  scale_color_brewer(name ='Incomde\ndeciles', palette = 'BrBG', direction = -1) + 
 #  facet_wrap(~ scenario, nrow = 1) +
+  scale_color_manual(values = c("#f9b57c", "#7c93f9")) + 
   geom_abline(linetype = "dashed") +
   coord_fixed()  +
   theme_minimal() +
@@ -487,9 +488,11 @@ fig_gini_all <- ggplot() +
                                y = gini_index, 
                                fill=scenario), 
                            position = "dodge") +
-                  labs(x='', y = 'Gini coef.', fill = "") +
+                  labs(x='', y = 'Gini coefficient', fill = "") +
                   ylim(0, .65) + 
                   # scale_x_discrete(limits=rev) +
+                  # scale_fill_viridis_d(option = "D") +
+                  scale_fill_manual(values = c("#f9b57c", "#7c93f9")) + 
                   theme_minimal() +
                   theme(axis.title.x=element_blank()) +
                   theme(legend.position="none") 
@@ -501,9 +504,11 @@ fig_gini_dec <- ggplot() +
                y = gini_index, 
                fill=scenario), 
            position = "dodge") +
-  labs(x='', y = 'Gini coef.', fill = "") +
+  labs(x='', y = 'Gini coefficient', fill = "") +
+  # scale_fill_viridis_d(option = "D") +
+  scale_fill_manual(values = c("#f9b57c", "#7c93f9")) + 
   ylim(0, .65) + 
-  # scale_x_discrete(limits=rev) +
+  scale_x_discrete(limits=rev) +
   theme_minimal() +
   theme(axis.title.x=element_blank())
 
@@ -572,7 +577,7 @@ accessibility::theil_index(accessibility_data = acs,
                            sociodemographic_data = pop,
                            opportunity = 'score',
                            population = 'pop_total',
-                           socioeconomic_groups = 'deciles'),
+                           socioeconomic_groups = 'deciles',
                            group_by = 'scenario')
 
 # total inequality
@@ -620,15 +625,21 @@ fig_theil_total2 <- ggplot() +
                     geom_col(data = theil_all_btw,
                              position = "dodge",
                              aes(x=component, y = value , fill=scenario)) +
-                    labs(x='Inequality component', y = 'Theil inequality', fill = "group") +
+                    labs(x='inequality component', y = 'Theil inequality', fill = "group") +
+                    scale_fill_manual(values = c("#f9b57c", "#7c93f9")) +
+                    scale_x_discrete(limits = rev) + 
                     theme_minimal() + 
                     theme(legend.position="top",
                           legend.title=element_blank()) 
 
+
+fig_theil_total2
+
 fig_theil_total <- ggplot() + 
                     geom_col(data = subset(theil_all_btw, component == 'Total'),
                              aes(x=scenario, y = value , fill=scenario)) +
-                    labs(x=' ', y = 'Total inequality', fill = "group") +
+                    labs(x=' ', y = 'total inequality', fill = "group") +
+                    scale_fill_manual(values = c("#f9b57c", "#7c93f9")) +
                     theme_minimal() + 
                     theme(legend.position="none") 
 
@@ -636,7 +647,8 @@ fig_theil_total <- ggplot() +
 fig_theil_btwn <- ggplot() + 
                   geom_col(data = subset(theil_all_btw, component == 'Between'),
                            aes(x=scenario, y = value , fill=scenario)) +
-                  labs(x=' ', y = 'Between-group inequality', fill = "group") +
+                  labs(x=' ', y = 'between-group inequality', fill = "group") +
+                  scale_fill_manual(values = c("#f9b57c", "#7c93f9")) +
                   theme_minimal() + 
                   theme(legend.position="none") 
                 
@@ -644,8 +656,9 @@ fig_theil_within <- ggplot() +
                   geom_col(data=theil_within, 
                            aes(x=group, y = within_i , fill=scenario), position = "dodge") +
                   labs(x='Group', y = 'Within-group inequality', fill = "Scenario") +
+                  scale_fill_manual(values = c("#f9b57c", "#7c93f9")) +
                   # facet_wrap(~ group, nrow = 1) +
-                  scale_x_discrete(limits=rev) +
+                  # scale_x_discrete(limits=rev) +
                   theme_minimal() +
                   # theme_classic
                   theme(legend.position="bottom") 
