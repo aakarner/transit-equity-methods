@@ -399,6 +399,11 @@ bar_wide <-
   # pivot_longer(cols = c("fgt0", "fgt1", "fgt2")) %>%
   mutate(decile = `eval(parse(text = grouping_var))`)
 
+segments <-
+  pivot_wider(select(bar_long, date, name, value, decile),
+              names_from = date,
+              values_from = value)
+
 
 ggplot() + 
   geom_col(data = bar, aes(x = as.factor(decile), y = value, fill = date), position = "dodge") +
@@ -408,11 +413,22 @@ ggplot() +
 
 
 ggplot() + 
-  geom_point(data = bar, aes(y = as.factor(decile), x = value, color = date)) +
+  geom_segment(data = segments,
+               aes(x = `Feb. 2020`, xend = `June 2020`, y = as.factor(decile), yend = as.factor(decile)),
+               color = grey(0.5)) +
+  geom_point(data = bar_long, aes(y = as.factor(decile), x = value, color = date), size = 2.5) +
   facet_wrap(~ name) + 
-  scale_color_manual(values = c("#f9b57c", "#7c93f9")) +
-  theme_minimal()
+  scale_color_manual(values = c("#D728CE", "#28D731")) +
+  xlab(NULL) + ylab("income decile") + 
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        panel.grid.minor = element_blank())
   
+
+ggsave("figures/fgt_compare.png")
+
+       width = 20, height = 8, dpi = 200, units = 'cm')
 
 bar <- do.call(rbind, lapply(c(500, 42000, 93000, 215000, 491000, 1e6), 
                              fgt, df = suff_long, grouping_var = "inc_dec"))
