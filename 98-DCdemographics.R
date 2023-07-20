@@ -5,6 +5,7 @@ library(forcats)
 library(dplyr)
 library(sf)
 library(ggplot2)
+library(ggspatial)
 
 # Map of urban block groups with relevant state/county boundaries
 
@@ -222,12 +223,12 @@ cty_coords <- data.frame(
 ggplot() + 
   geom_sf(data = wmata_states) + 
   geom_sf(data = wmata_states_clip, fill = "#abcd66") +
-  geom_label(
-    data = cty_coords, 
-    aes(x = X, y = Y, label = name_),
-    size = 2,
-    fontface = "italic") + 
-  coord_sf(xlim = c(-79,-76), ylim = c(38, 40)) +
+  # geom_label(
+  #   data = cty_coords, 
+  #   aes(x = X, y = Y, label = name_),
+  #   size = 2,
+  #   fontface = "italic") + 
+  coord_sf(xlim = c(-78,-76.2), ylim = c(38.4, 39.5)) +
   ggthemes::theme_map()  
   
 # theme(panel.grid.major = element_line(color = NA),
