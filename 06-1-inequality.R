@@ -563,7 +563,7 @@ accessibility::theil_index(accessibility_data = acs,
                            sociodemographic_data = pop,
                            opportunity = 'score',
                            population = 'pop_total',
-                           socioeconomic_groups = 'deciles'),
+                           socioeconomic_groups = 'deciles')#,
                            group_by = 'scenario')
 
 # total inequality
