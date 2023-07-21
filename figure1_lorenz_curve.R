@@ -18,7 +18,7 @@ fig_lorenz <- ggplot(data=df, aes(x = TNW, fill = Industry)) +
                      breaks = c(.25, .5, .75, 1)) + 
   annotate("text", x=.50, y=.3, parse=T, label = "bold(A)") + 
   annotate("text", x=.85, y=.3, parse=T, label = "bold(B)") + 
-  annotate("text", x=.24, y=.6, parse=T, label = "bold(Gini==frac(A, B))", size=4) +
+  annotate("text", x=.24, y=.6, parse=T, label = "bold(Gini==frac(A, A + B))", size=4) +
   annotate("text", x=.6, y=.88, parse=T, label = "'Line of equal distribution'") + 
   geom_segment(aes(x = .6, y = .85, xend = .72, yend = .75),
                arrow = arrow(length = unit(0.3, "cm"), type="closed")) +
