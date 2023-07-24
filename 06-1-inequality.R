@@ -427,7 +427,7 @@ fig_lorenz_inc <-
   labs(color = '') + # Group
 #  scale_color_brewer(name ='Incomde\ndeciles', palette = 'BrBG', direction = -1) + 
 #  facet_wrap(~ scenario, nrow = 1) +
-  scale_color_manual(values = c("#f9b57c", "#7c93f9")) + 
+  scale_color_manual(values = c("#66A182", "#2E4057")) + 
   geom_abline(linetype = "dashed") +
   coord_fixed()  +
   theme_minimal() +
@@ -492,7 +492,7 @@ fig_gini_all <- ggplot() +
                   ylim(0, .65) + 
                   # scale_x_discrete(limits=rev) +
                   # scale_fill_viridis_d(option = "D") +
-                  scale_fill_manual(values = c("#f9b57c", "#7c93f9")) + 
+                  scale_fill_manual(values = c("#66A182", "#2E4057")) + 
                   theme_minimal() +
                   theme(axis.title.x=element_blank()) +
                   theme(legend.position="none") 
@@ -506,7 +506,7 @@ fig_gini_dec <- ggplot() +
            position = "dodge") +
   labs(x='', y = 'Gini coefficient', fill = "") +
   # scale_fill_viridis_d(option = "D") +
-  scale_fill_manual(values = c("#f9b57c", "#7c93f9")) + 
+  scale_fill_manual(values = c("#66A182", "#2E4057")) + 
   ylim(0, .65) + 
   scale_x_discrete(limits=rev) +
   theme_minimal() +
@@ -794,8 +794,9 @@ fig_conc_curve <- ggplot(data=df_conc_curve) +
                     geom_line(aes(x=x, y=y, color = scenario)) +
                     scale_x_continuous(name="Cumulative share of population\nsorted by income",
                                        expand = c(0, 0), labels = scales::percent) + 
-                    scale_y_continuous(name="Cumulative share of Access",
+                    scale_y_continuous(name="Cumulative share of accessibility",
                                        expand = c(0, 0), labels = scales::percent) +
+                    scale_color_manual(values = c("#66A182", "#2E4057")) +
                     labs(color = '') +
                     # scale_color_brewer(name ='Incomde\ndeciles', palette = 'BrBG', direction = -1) + 
                     # facet_wrap(~ scenario, nrow = 1) +

@@ -20,9 +20,24 @@ wmata_shapes <- st_read("data/Metro_Lines_Regional.geojson")
 
 dc_scores <- 
   st_read("output/dc_scores.geojson") %>%
-  st_transform("+init=EPSG:4326")
+  st_transform("+init=EPSG:4326") %>%
+  mutate(scenario = factor(ifelse(date == 'Feb. 2020', "Before", "After"),
+                           levels = c("Before", "After"),
+                           labels = c("Before", "After")))
 
 urban_def <- read.csv("data/urban.csv")
+
+deciles  <- Hmisc::wtd.quantile(dc_scores$med_inc, weights=dc_scores$pop_total, 
+                                probs=c( seq(0 , 1 , 0.1) ), 
+                                type=c('quantile'), 
+                                normwt=FALSE, na.rm=T)
+dc_scores <- 
+  dc_scores %>%
+  mutate(deciles = findInterval(med_inc , deciles[ -length(deciles)]),
+         dec_inc = factor(deciles, 
+                          levels = 10:1,
+                          labels = c('D10\nWealthiest', 9:2, 'D1\nPoorest')))
+
 
 dc_scores %>%
   st_drop_geometry() %>%
@@ -46,7 +61,7 @@ dc_scores %>%
 dc_scores_final <-
   dc_scores %>%
   filter(GEOID %in% urban_def$bg_id) %>%
-  group_by(date) %>%
+  group_by(scenario) %>%
   mutate(std_score = scale(score),
          std_demand1 = scale(pop_poverty),
          std_demand2 = 
@@ -255,11 +270,11 @@ ggplot() +
   geom_sf(data = dc_scores_final, aes(fill = `desert status`), color = NA) +
   geom_sf(data = wmata_shapes, color = "white") +
   geom_sf(data = wmata_states, fill = NA, col = "black") + 
-  facet_wrap(~ date) + 
+  facet_wrap(~ scenario) + 
   # coord_sf(xlim = c(-77.3, -76.8), ylim = c(38.7, 39.15), expand = FALSE) +
   coord_sf(xlim = c(1226715.965140128, 1369011.5944263502), ylim = c(376465.63918774325, 540355.250319933)) + 
   # scale_fill_manual(values = c("#440154FF", "#FDE725FF")) +
-  scale_fill_manual(values = c("#f9b57c", "#7c93f9")) +
+  scale_fill_manual(values = c("#66A182", "#2E4057")) +
   ggthemes::theme_map() + 
   theme(panel.background = element_rect(fill = grey(0.9))) + 
   annotation_scale(
@@ -327,7 +342,7 @@ quantile(filter(dc_scores_final, date == "Feb. 2020")$score, c(seq(0.1, 0.5, 0.1
 
 acc_quantiles <- 
   Hmisc::wtd.quantile(
-    filter(dc_scores_final, date == "Feb. 2020")$score,
+    filter(dc_scores_final, scenario == "Before")$score,
     weights = dc_scores_final$pop_total, 
     probs=c( seq(0 , 1 , 0.1) ), 
     type=c('quantile'), 
@@ -337,8 +352,7 @@ acc_quantiles <-
 sufficiency <- 
   dc_scores_final %>%
   st_drop_geometry() %>%
-  mutate(acc_quant = findInterval(score, acc_quantiles[-length(acc_quantiles)]),
-         inc_dec = findInterval(med_inc, deciles[-length(deciles)]))
+  mutate(acc_quant = findInterval(score, acc_quantiles[-length(acc_quantiles)]))
 
 # it's not correct to just total everyone in that category - it's cumulative
 # has to be all in that quantile and below
@@ -346,7 +360,7 @@ sufficiency <-
 suff_table <- 
   sufficiency %>%
     st_drop_geometry() %>%
-    group_by(acc_quant, date) %>%
+    group_by(acc_quant, scenario) %>%
     summarize(total_pop = sum(pop_total),
               black_pop = sum(pop_black),
               white_pop = sum(pop_white),
@@ -354,7 +368,7 @@ suff_table <-
               latinx_pop = sum(pop_hispanic),
               indig_pop = sum(pop_indig),
               pov_pop = sum(pop_poverty)) %>%
-  arrange(date, acc_quant)
+  arrange(scenario, acc_quant)
 
 # We want a figure that shows changes in the FGT measures from feb-june by demographic
 # group by thresholds 
@@ -373,7 +387,7 @@ fgt <- function(df, threshold, grouping_var) {
   
   headcount <-
     df %>%
-    group_by(date, eval(parse(text  = grouping_var))) %>%
+    group_by(scenario, eval(parse(text  = grouping_var))) %>%
     filter(score <= threshold) %>%
     summarize(fgt0_toSum = sum(pop_total),
               fgt1_toSum = sum(pop_total * ((threshold - score)/threshold)),
@@ -388,21 +402,26 @@ fgt <- function(df, threshold, grouping_var) {
 
 # foo <- fgt(suff_long, 65159.75, "pop_group")
 bar_long <- 
-  fgt(suff_long, 135366.5, "inc_dec") %>% # 50th percentile 
+  fgt(suff_long, 135366.5, "dec_inc") %>% # 50th percentile 
   pivot_longer(cols = c("fgt0", "fgt1", "fgt2")) %>%
   mutate(decile = `eval(parse(text = grouping_var))`) %>%
   filter(!is.na(value)) %>%
-  filter(!is.na(decile))
+  filter(!is.na(decile)) %>%
+  mutate(exps = ifelse(name == "fgt0", "FGT\u2080",
+                ifelse(name == "fgt1", "FGT\u2081", "FGT\u2082")))
+
 
 bar_wide <- 
-  fgt(suff_long, 135366.5, "inc_dec") %>% # 50th percentile 
+  fgt(suff_long, 135366.5, "dec_inc") %>% # 50th percentile 
   # pivot_longer(cols = c("fgt0", "fgt1", "fgt2")) %>%
   mutate(decile = `eval(parse(text = grouping_var))`)
 
 segments <-
-  pivot_wider(select(bar_long, date, name, value, decile),
-              names_from = date,
-              values_from = value)
+  pivot_wider(select(bar_long, scenario, name, value, decile),
+              names_from = scenario,
+              values_from = value) %>%
+  mutate(exps = ifelse(name == "fgt0", "FGT\u2080",
+                ifelse(name == "fgt1", "FGT\u2081", "FGT\u2082")))
 
 
 ggplot() + 
@@ -414,21 +433,22 @@ ggplot() +
 
 ggplot() + 
   geom_segment(data = segments,
-               aes(x = `Feb. 2020`, xend = `June 2020`, y = as.factor(decile), yend = as.factor(decile)),
+               aes(x = `Before`, xend = `After`, y = decile, yend = decile),
                color = grey(0.5)) +
-  geom_point(data = bar_long, aes(y = as.factor(decile), x = value, color = date), size = 2.5) +
-  facet_wrap(~ name) + 
-  scale_color_manual(values = c("#D728CE", "#28D731")) +
+  geom_point(data = bar_long, aes(y = decile, x = value, color = scenario), size = 2.5) +
+  facet_wrap(~ exps) + 
+  scale_color_manual(values = c("#66A182", "#2E4057")) +
+  scale_y_discrete(limits=rev) +
   xlab(NULL) + ylab("income decile") + 
   theme_minimal(base_size = 14) +
   theme(legend.position = "bottom",
         legend.title = element_blank(),
         panel.grid.minor = element_blank())
   
+ggsave(filename="figures/fgt_compare.png")
 
-ggsave("figures/fgt_compare.png")
 
-       width = 20, height = 8, dpi = 200, units = 'cm')
+
 
 bar <- do.call(rbind, lapply(c(500, 42000, 93000, 215000, 491000, 1e6), 
                              fgt, df = suff_long, grouping_var = "inc_dec"))
