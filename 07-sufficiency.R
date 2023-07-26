@@ -201,11 +201,11 @@ ggplot() +
   geom_hline(yintercept = 0, color = grey(0.8)) + 
   geom_vline(xintercept = 0, color = grey(0.8)) +
   geom_point(data = filter(dc_scores_final, !is.na(categ)),
-             aes(x = gap1, y = std_score, color = categ), alpha = 0.9) + 
+             aes(x = gap1, y = std_score, color = categ), alpha = 0.6, shape = 16, stroke = 0, size = 2) + 
   scale_color_viridis_d() + 
   xlab("\"gap\" (demand - supply)") + 
   ylab("standardized access score") + 
-  facet_wrap(~ date) + 
+  facet_wrap(~ scenario) + 
   guides(color = guide_legend(title = "demand-supply")) +
   theme_bw() + 
   theme(legend.position = "bottom",
@@ -257,7 +257,7 @@ ggplot() +
 # Where are deserts? -----------------------------------------------------------
 
 scale_params <- tibble::tibble(
-  date = c("June 2020"),
+  date = c("After"),
   width_hint = 0.25,
   style = c("bar"),
   location = c("br"),
@@ -267,7 +267,7 @@ scale_params <- tibble::tibble(
 )
 
 ggplot() + 
-  geom_sf(data = dc_scores_final, aes(fill = `desert status`), color = NA) +
+  geom_sf(data = dc_scores_final, aes(fill = `desert status`), colour = NA) +
   geom_sf(data = wmata_shapes, color = "white") +
   geom_sf(data = wmata_states, fill = NA, col = "black") + 
   facet_wrap(~ scenario) + 

@@ -626,8 +626,8 @@ fig_theil_total2 <- ggplot() +
                              position = "dodge",
                              aes(x=component, y = value , fill=scenario)) +
                     labs(x='inequality component', y = 'Theil inequality', fill = "group") +
-                    scale_fill_manual(values = c("#f9b57c", "#7c93f9")) +
-                    scale_x_discrete(limits = rev) + 
+                    scale_fill_manual(values = c("#66A182", "#2E4057")) +
+                    # scale_x_discrete(limits = rev) + 
                     theme_minimal() + 
                     theme(legend.position="top",
                           legend.title=element_blank()) 
@@ -771,6 +771,7 @@ ggsave(fig_ci_inc,
 temp_after <- temp_after[order(med_inc, deciles, score)]
 temp_before <- temp_before[order(med_inc, deciles, score)]
 
+# weighted by population
 get_conc_curve_df <- function(dt, income, population, access, group_by){
   
   dt <- dt[order(get(group_by), get(income), get(population), get(access))]
@@ -781,6 +782,19 @@ get_conc_curve_df <- function(dt, income, population, access, group_by){
                 by = group_by]
   return(temp_df)
   }
+
+# unweighted
+get_conc_curve_df <- function(dt, income, population, access, group_by){
+  
+  dt <- dt[order(get(group_by), get(income), get(population), get(access))]
+
+  temp_df <- dt[, .(x = cumsum(get(population))/max(cumsum(get(population))),
+                    y = cumsum(get(access))/max(cumsum(get(access)))
+                    ),
+                by = group_by]
+  return(temp_df)
+  }
+
 
 
 df_conc_curve <- get_conc_curve_df(df_inc, 
@@ -809,7 +823,7 @@ fig_conc_curve
 
 ggsave(fig_conc_curve, 
        file = './figures/fig_conc_curve.png', 
-       width =16, height = 16, dpi = 200, units = 'cm')
+       width =16, height = 16, dpi = 200, units = 'cm', bg= "white")
 
 
 # sanity check
