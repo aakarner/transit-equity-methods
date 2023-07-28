@@ -753,8 +753,8 @@ ggsave(fig_ci_inc,
 # conc_index <- df_inc[, concentr(x= score, y=med_inc, w= pop_total), by =scenario]
 
 # # decompose concentration index
-# temp_before <- subset(df_inc, scenario == 'Before')
-# temp_after <- subset(df_inc, scenario == 'After')
+temp_before <- subset(df_inc, scenario == 'Before')
+temp_after <- subset(df_inc, scenario == 'After')
 # 
 # decomp_concentr(x = temp_before$score, 
 #                 y = temp_before$med_inc,
@@ -772,16 +772,16 @@ temp_after <- temp_after[order(med_inc, deciles, score)]
 temp_before <- temp_before[order(med_inc, deciles, score)]
 
 # weighted by population
-get_conc_curve_df <- function(dt, income, population, access, group_by){
-  
-  dt <- dt[order(get(group_by), get(income), get(population), get(access))]
-
-  temp_df <- dt[, .(x = cumsum(get(population))/max(cumsum(get(population))),
-                    y = cumsum(get(access)*get(population))/max(cumsum(get(access)*get(population)))
-                    ),
-                by = group_by]
-  return(temp_df)
-  }
+# get_conc_curve_df <- function(dt, income, population, access, group_by){
+#   
+#   dt <- dt[order(get(group_by), get(income), get(population), get(access))]
+# 
+#   temp_df <- dt[, .(x = cumsum(get(population))/max(cumsum(get(population))),
+#                     y = cumsum(get(access)*get(population))/max(cumsum(get(access)*get(population)))
+#                     ),
+#                 by = group_by]
+#   return(temp_df)
+#   }
 
 # unweighted
 get_conc_curve_df <- function(dt, income, population, access, group_by){
@@ -804,12 +804,19 @@ df_conc_curve <- get_conc_curve_df(df_inc,
                   group_by = 'scenario')
 
 
+# write.csv(df_conc_curve, "output/df_conc_curve.csv")
+
+
 fig_conc_curve <- ggplot(data=df_conc_curve) +
                     geom_line(aes(x=x, y=y, color = scenario)) +
                     scale_x_continuous(name="Cumulative share of population\nsorted by income",
-                                       expand = c(0, 0), labels = scales::percent) + 
+                                       expand = c(0, 0), labels = scales::percent,
+                                       minor_breaks = seq(0 , 1, 0.05), 
+                                       breaks = seq(0, 1, 0.1)) + 
                     scale_y_continuous(name="Cumulative share of accessibility",
-                                       expand = c(0, 0), labels = scales::percent) +
+                                       expand = c(0, 0), labels = scales::percent,
+                                       minor_breaks = seq(0 , 1, 0.05), 
+                                       breaks = seq(0, 1, 0.1)) +
                     scale_color_manual(values = c("#66A182", "#2E4057")) +
                     labs(color = '') +
                     # scale_color_brewer(name ='Incomde\ndeciles', palette = 'BrBG', direction = -1) + 
@@ -818,7 +825,6 @@ fig_conc_curve <- ggplot(data=df_conc_curve) +
                     theme_minimal() +
                     coord_fixed()  +
                     theme(axis.line = element_line(colour = "gray90", linetype=1))
-
 fig_conc_curve
 
 ggsave(fig_conc_curve, 

@@ -6,6 +6,7 @@ library(tidyr)
 library(tidytransit)
 library(tigris)
 library(tidycensus)
+library(patchwork)
 
 # Pull WMATA rail --------------------------------------------------------------
 
@@ -77,9 +78,12 @@ dc_scores_final <-
          ) %>%
   st_transform("EPSG:2248")
 
+
+st_area(dc_scores_final)
+
 dc_scores_final %>% 
+  ungroup() %>%
   st_drop_geometry() %>% 
-  ungroup() %>% 
   group_by(categ, date) %>% 
   summarize(pop_total = sum(pop_total, na.rm = TRUE),
             pov_pop = sum(pop_poverty, na.rm = TRUE),
@@ -88,14 +92,51 @@ dc_scores_final %>%
   arrange(date, categ)
 
 # How many people are in deserts before and after the covid cut? 
-dc_scores_final %>% 
-  st_drop_geometry() %>% 
-  ungroup() %>% 
-  group_by(date, `desert status`) %>% 
-  summarize(pop_total = sum(pop_total, na.rm = TRUE),
-            pov_pop = sum(pop_poverty, na.rm = TRUE),
-            count = n()) %>%
-  arrange(date, `desert status`)
+desert_counts <- 
+  dc_scores_final %>% 
+    ungroup() %>% 
+    mutate(sq_km = units::drop_units(units::set_units(st_area(.), km^2))) %>%
+    st_drop_geometry() %>% 
+    group_by(scenario, `desert status`) %>% 
+    summarize(pop_total = sum(pop_total, na.rm = TRUE),
+              pov_pop = sum(pop_poverty, na.rm = TRUE),
+              tot_area = sum(sq_km),
+              count = n()) %>%
+    arrange(scenario, `desert status`) %>%
+  pivot_longer(cols = pop_total:count) %>%
+  mutate(varnames = factor(name, 
+                       levels = c("count", "pop_total", "pov_pop", "tot_area"),
+                       labels = c("block group count", "total population", "population in poverty", "total area (km\u00B2)")))
+
+# Population totals
+pop_figs <- 
+  ggplot() + 
+    geom_col(data = filter(desert_counts, grepl("population", varnames)),
+             aes(y = value, x = `desert status`, fill = scenario),
+             position = "dodge") +
+    facet_wrap(~ varnames) + 
+    xlab(NULL) + 
+    scale_y_continuous(name = "count", labels = scales::comma) + 
+    scale_fill_manual(values = c("#66A182", "#2E4057"), guide = "none") +
+    theme_minimal() + 
+    theme(legend.position = "bottom")
+
+
+# Counts and area
+count_figs <- 
+  ggplot() + 
+    geom_col(data = filter(desert_counts, !grepl("population", varnames)),
+             aes(y = value, x = `desert status`, fill = scenario),
+             position = "dodge") +
+    facet_wrap(~ varnames) + 
+    ylab(NULL) + 
+    scale_fill_manual(values = c("#66A182", "#2E4057")) +
+    theme_minimal() + 
+    theme(legend.position = "bottom")
+
+desert_stats <- pop_figs / count_figs + plot_annotation(tag_levels = 'A')
+  
+ggsave(desert_stats, filename = "figures/desert_stats.png", width = 9, height = 6, units = "in", dpi = 200)
 
 dc_scores %>%
   st_drop_geometry() %>%
