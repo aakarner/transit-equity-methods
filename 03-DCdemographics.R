@@ -11,7 +11,7 @@ library(ggspatial)
 
 # read ids of urban areas
 urban_ids <- 
-  fread("output/urban.csv", colClasses = 'character') %>%
+  fread("data/urban.csv", colClasses = 'character') %>%
   mutate(trct_id = substr(bg_id, 1, 11))
 
 urban_trcts <- unique(urban_ids$trct_id)
@@ -37,8 +37,8 @@ wmata_area <-
                          "Alexandria city", "Fairfax city", "Falls Church city", 
                          "Prince George's County") | 
          NAMELSAD == "Montgomery County" & STATEFP == 24) %>% # don't pull VA here
-  st_union()
-  # st_transform("EPSG:2248")
+  st_union() +
+  st_transform("EPSG:2248")
 
 wmata_states <- 
   states() %>% 
@@ -136,7 +136,7 @@ trct_demogs$brks <-
 wmata_states_clip <- 
   st_intersection(wmata_states, st_union(trct_demogs))
 
-ggplot(wmata_states_clip) + geom_sf(color = "red")
+# ggplot(wmata_states_clip) + geom_sf(color = "red")
 
 scale_params <- tibble::tibble(
     variable = c("Households in poverty"),
@@ -153,7 +153,7 @@ na_params <- tibble::tibble(
 )
 
 plot_demogs <- st_transform(trct_demogs, "EPSG:2248")
-plot_demogs <- st_transform(trct_demogs, "EPSG:4326")
+# plot_demogs <- st_transform(trct_demogs, "EPSG:4326")
 
 st_bbox(plot_demogs)
 #      xmin      ymin      xmax      ymax 
