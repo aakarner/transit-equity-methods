@@ -12,11 +12,11 @@ options(scipen = 999)
 # 1. read accessibility estimates --------------------------------------------------------------
 
 # read ids of urban areas
-urban_ids <- fread("output/urban.csv", colClasses = 'character')
+urban_ids <- fread("data/urban.csv", colClasses = 'character')
 
 # read accessibility estimates
 dc_scores <- 
-  st_read("output/dc_scores.geojson") |>
+  st_read("data/dc_scores.geojson") |>
   st_transform("EPSG:4326") 
 
 # keep only accessibility estimates in urban areas with pop > 0
@@ -26,11 +26,8 @@ dc_scores <- dc_scores[ pop_total > 0,]
 
 
 ### sanity check
-
 dc_scores[, .(w = weighted.mean(x= score, w=pop_white, na.rm=T),
               b = weighted.mean(x= score, w=pop_black, na.rm=T)), by = date ]
-
-
 
 # 2. recode variables --------------------------------------------------------------
 
@@ -69,276 +66,20 @@ head(dc_scores)
 # back to spatial sf
 # dc_scores <- st_sf(dc_scores)
 
-
-
-
-# 2. Inequality by race --------------------------------------------------------------
-
-
-## 2.1 reshape data and load functions--------------------------------------------------------------
-
-# load functions to calculate inequality
-source('./06-0-inequality-measures.R')
-
-df <- copy(dc_scores)
-setDT(df)
-
-# select colums and reshape to long format
-df_race <- df[, .(GEOID, score, scenario, pop_black, pop_white, difference)]
-df_race <- data.table::melt(data = df_race, 
-                       id.vars = c('GEOID', 'score', 'scenario', 'difference'), 
-                       variable.name = 'race',
-                       value.name = 'pop')
-
-
-
-
-# recode categories
-df_race[, race := fifelse(race == "pop_black", "Blacks", "Whites")]
-
-
-
-## 3.0 boxplot --------------------------------------------------------------
-
-### level
-box_level <- ggplot(data = df_race[pop > 0]) +
-              geom_boxplot(
-                aes(
-                  x = race,
-                  y = score,
-                  color = race,
-                  weight = pop,
-                  group = race
-                ),
-                show.legend = FALSE
-              ) +
-              facet_wrap(~ scenario, nrow = 1) +
-              labs(x = "Race", y = "Accessibility score") +
-              theme_minimal()
-
-
-
-### difference
-box_impact <- ggplot(data = df_race[pop > 0]) +
-  geom_boxplot(
-    aes(
-      x = race,
-      y = difference,
-      color = race,
-      weight = pop,
-      group = race
-    ),
-    show.legend = FALSE
-  ) +
-  labs(x = "Race", y = "Accessibility score") +
-  theme_minimal()
-
-
-fig_box_race <- box_level + box_impact + plot_annotation(tag_levels = 'A')
-fig_box_race
-
-
-
-ggsave(fig_box_race, 
-       file = './figures/fig_box_race.png', 
-       width = 20, height = 8, dpi = 200, units = 'cm')
-
-
-
-## 2.2 lorenz curves --------------------------------------------------------------
-
-# function to get a data.frame to plot the Lorenz curve
-get_lorenz_df <- function(x, n){
-  distrib <- ineq::Lc(x = x, n = n)
-  temp_df <- data.frame(p = distrib$p, L = distrib$L)
-  return(temp_df)
-}
-
-lorenz_race <- df_race[, get_lorenz_df(x = score, n = pop), by = .(race, scenario)]
-lorenz_total <- df_race[, get_lorenz_df(x = score, n = pop),by = .(scenario)]
-lorenz_total$race <- 'All'
-
-# rbind
-setcolorder(lorenz_total, names(lorenz_race))
-lorenz_df <- rbind(lorenz_total, lorenz_race)
-
-fig_lorenz_race <- ggplot(data=lorenz_df) +
-                      geom_line(aes(x=p, y=L, color=race)) +
-                      scale_x_continuous(name="Cumulative share of Population",
-                                         expand = c(0, 0), labels = c(0, .25, .5, .75, 1)) + 
-                      scale_y_continuous(name="Cumulative share of Access",
-                                         expand = c(0, 0)) +
-                      labs(color = 'Group') +
-                      facet_wrap(~ scenario, nrow = 1) +
-                      geom_abline() +
-                      theme_classic() +
-                      theme(strip.background = element_rect(fill=NA, color=NA))
-
-fig_lorenz_race
-# ggsave(fig_lorenz_race, 
-#        file = './figures/fig_lorenz_race.png', 
-#        width = 16, height = 8, dpi = 200, units = 'cm')
-
-
-
-
-
-## 2.3 gini --------------------------------------------------------------
-
-gini_all <- df_race[, .(gini = gini(x=score, w=pop),
-                   race = 'All'), by = scenario]
-
-gini_races <- df_race[, .(gini = gini(x=score, w=pop)), 
-                 by = .(race, scenario)]
-
-setcolorder(gini_all, names(gini_races))
-
-gini_df <- rbind(gini_all, gini_races)
-
-fig_gini <- ggplot() + 
-            geom_col(data=gini_df, 
-                     aes(x=race, y = gini , fill=scenario), position = "dodge") +
-            labs(x='Group', y = 'Gini coef.', fill = "Scenario") +
-            theme_minimal() 
-            
-
-
-fig_lorenz_gini_race <- (fig_lorenz_race / fig_gini )+ plot_annotation(tag_levels = 'A')
-fig_lorenz_gini_race
-
-
-
-ggsave(fig_lorenz_gini_race, 
-       file = './figures/fig_lorenz_gini_race.png', 
-       width = 18, height = 16, dpi = 200, units = 'cm')
-
-
-
-
-## 2.4 palma ratio --------------------------------------------------------------
-
-
-df_palma_race <- df_race[, .(avg_access = weighted.mean(x = score, w = pop, na.rm = TRUE)),
-                    by = .(scenario   ,race)]
-
-df_palma_race <- data.table::dcast(df_palma_race, 
-                              formula = scenario ~ race, 
-                              value.var = "avg_access")
-
-
-df_palma_race$palma_race <- df_palma_race$Whites / df_palma_race$Blacks
-
-fig_palma_race <- ggplot(data = df_palma_race, aes(x=scenario, y = palma_race)) + 
-                    geom_col(aes(fill=scenario)) +
-                    geom_text( aes(label = round(palma_race, digits = 2)),
-                      vjust = 1.5,
-                      color = "white",
-                      size = 10
-                    ) +
-                    labs(x='Scenario', y = 'Racial ratio\nWhites / Blacks', fill = "Scenario") +
-                    theme_minimal() +
-                    theme(legend.position="none")
-
-fig_palma_race
-ggsave(fig_palma_race, 
-       file = './figures/palma_race.png', 
-       width = 15, height = 10, dpi = 200, units = 'cm')
-
-
-## 2.5 theil --------------------------------------------------------------
-
-# total inequality
-theil_race_total <- df_race[, theil_t(x=score, w=pop), by = scenario]
-
-# inequality components
-temp_before <- subset(df_race, scenario == 'Before')
-temp_after <- subset(df_race, scenario == 'After')
-
-theil_race_comp_before <- decomp_theil_t(x = temp_before$score, 
-                                        groups = temp_before$race, 
-                                        w = temp_before$pop)
-
-theil_race_comp_after <- decomp_theil_t(x = temp_after$score, 
-                                        groups = temp_after$race, 
-                                        w = temp_after$pop)
-
-# add scenarios
-theil_race_comp_before[[1]]$scenario <- 'Before'
-theil_race_comp_before[[2]]$scenario <- 'Before'
-theil_race_comp_after[[1]]$scenario <- 'After'
-theil_race_comp_after[[2]]$scenario <- 'After'
-
-theil_all_btw <- rbind(theil_race_comp_before[[1]], theil_race_comp_after[[1]])
-theil_within <- rbind(theil_race_comp_before[[2]], theil_race_comp_after[[2]])
-
-theil_all_btw[, scenario := factor(scenario, 
-                                   levels = c('Before', 'After'),
-                                   labels = c('Before', 'After'))]
-theil_within[, scenario := factor(scenario, 
-                                   levels = c('Before', 'After'),
-                                   labels = c('Before', 'After'))]
-
-fig_theil_total <- ggplot() + 
-                   geom_col(data = subset(theil_all_btw, component == 'total'),
-                            aes(x=scenario, y = value , fill=scenario)) +
-                  labs(x=' ', y = 'Total inequality', fill = "group") +
-                  theme_minimal() + 
-                  theme(legend.position="none") 
-
-
-fig_theil_btwn <- ggplot() + 
-                  geom_col(data = subset(theil_all_btw, component == 'between'),
-                           aes(x=scenario, y = value , fill=scenario)) +
-                  labs(x=' ', y = 'Between-group inequality', fill = "group") +
-                  theme_minimal() + 
-                  theme(legend.position="none") 
-
-fig_theil_within <- ggplot() + 
-                      geom_col(data=theil_within, 
-                               aes(x=group, y = within_i , fill=scenario), position = "dodge") +
-                      labs(x='Group', y = 'Within-group inequality', fill = "Scenario") +
-                      # facet_wrap(~ group, nrow = 1) +
-                      theme_minimal() +
-                      # theme_classic
-                      theme(legend.position="bottom") 
-                    
-
-
-fig_theil_race <- (fig_theil_total + fig_theil_btwn) / fig_theil_within +
-                  plot_annotation(tag_levels = 'A')
-
-fig_theil_race
-
-ggsave(fig_theil_race, 
-       file = './figures/fig_theil_race.png', 
-       width =16, height = 16, dpi = 200, units = 'cm')
-
-
-
-
-
-
-
-
 # 3. Inequality by income --------------------------------------------------------------
-
 
 ## 3.0 reshape data and load functions--------------------------------------------------------------
 
 # load functions to calculate inequality
-source('./06-0-inequality-measures.R')
+source('./00-inequality-measures.R')
 
 df <- copy(dc_scores)
 setDT(df)
 
-
-# select colums and reshape to long format
+# select columns and reshape to long format
 df_inc <- df[, .(GEOID, score, med_inc, deciles, dec_inc, scenario, date, pop_total, difference)]
 df_inc <- df_inc[!is.na(dec_inc)]
 table(df_inc$dec_inc, useNA = "always")
-
-
-
 
 ## 3.1 boxplot --------------------------------------------------------------
 
@@ -365,8 +106,6 @@ box_level <-
   theme_minimal() + 
   theme(panel.spacing.x = unit(2, "lines"))
 
-
-
 ### difference
 box_impact <- ggplot(data = df_inc[pop_total > 0]) +
   geom_boxplot(
@@ -392,13 +131,9 @@ box_impact <- ggplot(data = df_inc[pop_total > 0]) +
 fig_box_income <- box_level / box_impact + plot_annotation(tag_levels = 'A')
 fig_box_income
 
-
-
 ggsave(fig_box_income, 
        file = './figures/fig_box_income.png', 
        width = 18, height = 16, dpi = 200, units = 'cm')
-
-
 
 ## 3.2 lorenz curves --------------------------------------------------------------
 
@@ -434,17 +169,12 @@ fig_lorenz_inc <-
   theme(strip.background = element_rect(fill=NA, color=NA)) 
 
 
-
-
-
 fig_lorenz_inc
 # ggsave(fig_lorenz_inc,
 #        file = './figures/fig_lorenz_inc.png',
 #        width = 16, height = 8, dpi = 200, units = 'cm')
 # 
 # 
-
-
 
 ## 3.3 gini --------------------------------------------------------------
 
@@ -461,7 +191,6 @@ gini_all <- accessibility::gini_index(accessibility_data = acs,
                           opportunity = 'score',
                           population = 'pop_total', 
                           group_by = 'scenario')
-
 
 gini_inc <- accessibility::gini_index(accessibility_data = acs,
                                       sociodemographic_data = pop, 
@@ -497,7 +226,6 @@ fig_gini_all <- ggplot() +
                   theme(axis.title.x=element_blank()) +
                   theme(legend.position="none") 
 
-
 fig_gini_dec <- ggplot() + 
   geom_col(data = gini_inc, 
            aes(x = deciles, 
@@ -513,19 +241,13 @@ fig_gini_dec <- ggplot() +
   theme(axis.title.x=element_blank())
 
 
-
 fig_lorenz_gini_inc <- ((fig_lorenz_inc + fig_gini_all) / fig_gini_dec ) + 
                         plot_annotation(tag_levels = 'A')
 fig_lorenz_gini_inc
 
-
-
 ggsave(fig_lorenz_gini_inc, 
        file = './figures/fig_lorenz_gini_inc2.png', 
        width = 18, height = 16, dpi = 200, units = 'cm')
-
-
-
 
 ## 3.4 palma ratio --------------------------------------------------------------
 acs <- copy(df_inc)[, .(GEOID, score, scenario )]
@@ -560,7 +282,6 @@ fig_palma_inc
 ggsave(fig_palma_inc, 
        file = './figures/palma_inc.png', 
        width = 15, height = 10, dpi = 200, units = 'cm')
-
 
 
 ## 3.5 theil --------------------------------------------------------------
@@ -664,7 +385,6 @@ fig_theil_within <- ggplot() +
                   theme(legend.position="bottom") 
 
 
-
 fig_theil_dec_inc <- (fig_theil_total + fig_theil_btwn) / fig_theil_within +
   plot_annotation(tag_levels = 'A')
 
@@ -679,13 +399,11 @@ ggsave(fig_theil_total2,
        width =16, height = 10, dpi = 200, units = 'cm')
 
 
-
 #' Because we use a place-based accessibility, we are implicitly assuming that 
-#'assume all individuals in the same census block have the same accessibility
-#'level, regardeless of personal characteristics. This is why place-based 
+#' all individuals in the same census block have the same accessibility
+#'level, regardless of personal characteristics. This is why place-based 
 #'accessibility measures are known to underestimate accessibility inequalities
 #'Kwan , Neutens
-
 
 
 ## 3.6 concentration index --------------------------------------------------------------
@@ -733,15 +451,6 @@ fig_ci
 ggsave(fig_ci, 
        file = './figures/fig_conc_index.png', 
        width = 15, height = 10, dpi = 200, units = 'cm')
-
-
-fig_ci_inc <- fig_conc_curve + fig_ci + plot_annotation(tag_levels = 'A')
-fig_ci_inc
-
-ggsave(fig_ci_inc, 
-       file = './figures/fig_conc_index.png', 
-       width = 20, height = 8, dpi = 200, units = 'cm')
-
 
 # df_inc[scenario=='Before', # 'After'
 #             rineq::ci( ineqvar = med_inc,
@@ -795,8 +504,6 @@ get_conc_curve_df <- function(dt, income, population, access, group_by){
   return(temp_df)
   }
 
-
-
 df_conc_curve <- get_conc_curve_df(df_inc, 
                   income = 'med_inc',
                   population = 'pop_total',
@@ -805,7 +512,6 @@ df_conc_curve <- get_conc_curve_df(df_inc,
 
 
 # write.csv(df_conc_curve, "output/df_conc_curve.csv")
-
 
 fig_conc_curve <- ggplot(data=df_conc_curve) +
                     geom_line(aes(x=x, y=y, color = scenario)) +
@@ -831,7 +537,258 @@ ggsave(fig_conc_curve,
        file = './figures/fig_conc_curve.png', 
        width =16, height = 16, dpi = 200, units = 'cm', bg= "white")
 
+# fig_ci_inc <- fig_conc_curve + fig_ci + plot_annotation(tag_levels = 'A')
+# fig_ci_inc
+# 
+# ggsave(fig_ci_inc, 
+#        file = './figures/fig_conc_index.png', 
+#        width = 20, height = 8, dpi = 200, units = 'cm')
+# 
+
 
 # sanity check
 curveConcent(temp_after$score, temp_after$med_inc, w= temp_after$pop_total)
 curveConcent(temp_before$score, temp_before$deciles, w= temp_before$pop_total, add=T, col='red')
+
+
+# ## Results for inequality by race (not included in manuscript)
+# # 2. Inequality by race --------------------------------------------------------------
+# 
+# 
+# ## 2.1 reshape data and load functions--------------------------------------------------------------
+# 
+# # load functions to calculate inequality
+# source('./06-0-inequality-measures.R')
+# 
+# df <- copy(dc_scores)
+# setDT(df)
+# 
+# # select colums and reshape to long format
+# df_race <- df[, .(GEOID, score, scenario, pop_black, pop_white, difference)]
+# df_race <- data.table::melt(data = df_race, 
+#                             id.vars = c('GEOID', 'score', 'scenario', 'difference'), 
+#                             variable.name = 'race',
+#                             value.name = 'pop')
+# 
+# 
+# 
+# 
+# # recode categories
+# df_race[, race := fifelse(race == "pop_black", "Blacks", "Whites")]
+# 
+# 
+# 
+# ## 3.0 boxplot --------------------------------------------------------------
+# 
+# ### level
+# box_level <- ggplot(data = df_race[pop > 0]) +
+#   geom_boxplot(
+#     aes(
+#       x = race,
+#       y = score,
+#       color = race,
+#       weight = pop,
+#       group = race
+#     ),
+#     show.legend = FALSE
+#   ) +
+#   facet_wrap(~ scenario, nrow = 1) +
+#   labs(x = "Race", y = "Accessibility score") +
+#   theme_minimal()
+# 
+# 
+# 
+# ### difference
+# box_impact <- ggplot(data = df_race[pop > 0]) +
+#   geom_boxplot(
+#     aes(
+#       x = race,
+#       y = difference,
+#       color = race,
+#       weight = pop,
+#       group = race
+#     ),
+#     show.legend = FALSE
+#   ) +
+#   labs(x = "Race", y = "Accessibility score") +
+#   theme_minimal()
+# 
+# 
+# fig_box_race <- box_level + box_impact + plot_annotation(tag_levels = 'A')
+# fig_box_race
+# 
+# 
+# 
+# ggsave(fig_box_race, 
+#        file = './figures/fig_box_race.png', 
+#        width = 20, height = 8, dpi = 200, units = 'cm')
+# 
+# 
+# 
+# ## 2.2 lorenz curves --------------------------------------------------------------
+# 
+# # function to get a data.frame to plot the Lorenz curve
+# get_lorenz_df <- function(x, n){
+#   distrib <- ineq::Lc(x = x, n = n)
+#   temp_df <- data.frame(p = distrib$p, L = distrib$L)
+#   return(temp_df)
+# }
+# 
+# lorenz_race <- df_race[, get_lorenz_df(x = score, n = pop), by = .(race, scenario)]
+# lorenz_total <- df_race[, get_lorenz_df(x = score, n = pop),by = .(scenario)]
+# lorenz_total$race <- 'All'
+# 
+# # rbind
+# setcolorder(lorenz_total, names(lorenz_race))
+# lorenz_df <- rbind(lorenz_total, lorenz_race)
+# 
+# fig_lorenz_race <- ggplot(data=lorenz_df) +
+#   geom_line(aes(x=p, y=L, color=race)) +
+#   scale_x_continuous(name="Cumulative share of Population",
+#                      expand = c(0, 0), labels = c(0, .25, .5, .75, 1)) + 
+#   scale_y_continuous(name="Cumulative share of Access",
+#                      expand = c(0, 0)) +
+#   labs(color = 'Group') +
+#   facet_wrap(~ scenario, nrow = 1) +
+#   geom_abline() +
+#   theme_classic() +
+#   theme(strip.background = element_rect(fill=NA, color=NA))
+# 
+# fig_lorenz_race
+# # ggsave(fig_lorenz_race, 
+# #        file = './figures/fig_lorenz_race.png', 
+# #        width = 16, height = 8, dpi = 200, units = 'cm')
+# 
+# 
+# 
+# 
+# 
+# ## 2.3 gini --------------------------------------------------------------
+# 
+# gini_all <- df_race[, .(gini = gini(x=score, w=pop),
+#                         race = 'All'), by = scenario]
+# 
+# gini_races <- df_race[, .(gini = gini(x=score, w=pop)), 
+#                       by = .(race, scenario)]
+# 
+# setcolorder(gini_all, names(gini_races))
+# 
+# gini_df <- rbind(gini_all, gini_races)
+# 
+# fig_gini <- ggplot() + 
+#   geom_col(data=gini_df, 
+#            aes(x=race, y = gini , fill=scenario), position = "dodge") +
+#   labs(x='Group', y = 'Gini coef.', fill = "Scenario") +
+#   theme_minimal() 
+# 
+# 
+# 
+# fig_lorenz_gini_race <- (fig_lorenz_race / fig_gini )+ plot_annotation(tag_levels = 'A')
+# fig_lorenz_gini_race
+# 
+# 
+# 
+# ggsave(fig_lorenz_gini_race, 
+#        file = './figures/fig_lorenz_gini_race.png', 
+#        width = 18, height = 16, dpi = 200, units = 'cm')
+# 
+# 
+# 
+# 
+# ## 2.4 palma ratio --------------------------------------------------------------
+# 
+# 
+# df_palma_race <- df_race[, .(avg_access = weighted.mean(x = score, w = pop, na.rm = TRUE)),
+#                          by = .(scenario   ,race)]
+# 
+# df_palma_race <- data.table::dcast(df_palma_race, 
+#                                    formula = scenario ~ race, 
+#                                    value.var = "avg_access")
+# 
+# 
+# df_palma_race$palma_race <- df_palma_race$Whites / df_palma_race$Blacks
+# 
+# fig_palma_race <- ggplot(data = df_palma_race, aes(x=scenario, y = palma_race)) + 
+#   geom_col(aes(fill=scenario)) +
+#   geom_text( aes(label = round(palma_race, digits = 2)),
+#              vjust = 1.5,
+#              color = "white",
+#              size = 10
+#   ) +
+#   labs(x='Scenario', y = 'Racial ratio\nWhites / Blacks', fill = "Scenario") +
+#   theme_minimal() +
+#   theme(legend.position="none")
+# 
+# fig_palma_race
+# ggsave(fig_palma_race, 
+#        file = './figures/palma_race.png', 
+#        width = 15, height = 10, dpi = 200, units = 'cm')
+# 
+# 
+# ## 2.5 theil --------------------------------------------------------------
+# 
+# # total inequality
+# theil_race_total <- df_race[, theil_t(x=score, w=pop), by = scenario]
+# 
+# # inequality components
+# temp_before <- subset(df_race, scenario == 'Before')
+# temp_after <- subset(df_race, scenario == 'After')
+# 
+# theil_race_comp_before <- decomp_theil_t(x = temp_before$score, 
+#                                          groups = temp_before$race, 
+#                                          w = temp_before$pop)
+# 
+# theil_race_comp_after <- decomp_theil_t(x = temp_after$score, 
+#                                         groups = temp_after$race, 
+#                                         w = temp_after$pop)
+# 
+# # add scenarios
+# theil_race_comp_before[[1]]$scenario <- 'Before'
+# theil_race_comp_before[[2]]$scenario <- 'Before'
+# theil_race_comp_after[[1]]$scenario <- 'After'
+# theil_race_comp_after[[2]]$scenario <- 'After'
+# 
+# theil_all_btw <- rbind(theil_race_comp_before[[1]], theil_race_comp_after[[1]])
+# theil_within <- rbind(theil_race_comp_before[[2]], theil_race_comp_after[[2]])
+# 
+# theil_all_btw[, scenario := factor(scenario, 
+#                                    levels = c('Before', 'After'),
+#                                    labels = c('Before', 'After'))]
+# theil_within[, scenario := factor(scenario, 
+#                                   levels = c('Before', 'After'),
+#                                   labels = c('Before', 'After'))]
+# 
+# fig_theil_total <- ggplot() + 
+#   geom_col(data = subset(theil_all_btw, component == 'total'),
+#            aes(x=scenario, y = value , fill=scenario)) +
+#   labs(x=' ', y = 'Total inequality', fill = "group") +
+#   theme_minimal() + 
+#   theme(legend.position="none") 
+# 
+# 
+# fig_theil_btwn <- ggplot() + 
+#   geom_col(data = subset(theil_all_btw, component == 'between'),
+#            aes(x=scenario, y = value , fill=scenario)) +
+#   labs(x=' ', y = 'Between-group inequality', fill = "group") +
+#   theme_minimal() + 
+#   theme(legend.position="none") 
+# 
+# fig_theil_within <- ggplot() + 
+#   geom_col(data=theil_within, 
+#            aes(x=group, y = within_i , fill=scenario), position = "dodge") +
+#   labs(x='Group', y = 'Within-group inequality', fill = "Scenario") +
+#   # facet_wrap(~ group, nrow = 1) +
+#   theme_minimal() +
+#   # theme_classic
+#   theme(legend.position="bottom") 
+# 
+# 
+# 
+# fig_theil_race <- (fig_theil_total + fig_theil_btwn) / fig_theil_within +
+#   plot_annotation(tag_levels = 'A')
+# 
+# fig_theil_race
+# 
+# ggsave(fig_theil_race, 
+#        file = './figures/fig_theil_race.png', 
+#        width =16, height = 16, dpi = 200, units = 'cm')
