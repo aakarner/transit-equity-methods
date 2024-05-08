@@ -1,4 +1,4 @@
-# transit-equity-methods
+# Overview
 
 This repository contains all of the data and scripts necessary to reproduce the analysis included in the manuscript ["Advances and Pitfalls in Measuring Transportation Equity"](https://link.springer.com/article/10.1007/s11116-023-10460-7) published in the Springer Journal *Transportation*. The work demonstrates shortcomings inherent in traditional methods of analyzing accessibility inequalities and accessibility poverty. It also operationalizes new methods for capturing the same concepts.
 
@@ -8,3 +8,17 @@ Script descriptions:
 - **02-sufficiency.R**: Calculate all sufficiency/poverty meausres and produce Figures 7-9.
 - **03-DCDemographics.R**: Produce the demographic map in Figure 2.
 - **04-access-change-map.R**: Produce the access change map shown in Figure 3.
+
+# Cite our work
+Please cite our manuscript if you build upon this work. The preferred citation is:
+```
+@article{karner2024advances,
+  doi={10.1007/s11116-023-10460-7},
+  title={Advances and pitfalls in measuring transportation equity},
+  author={Karner, Alex and Pereira, Rafael HM and Farber, Steven},
+  journal={Transportation},
+  pages={1--28},
+  year={2024},
+  publisher={Springer US}
+}
+```
